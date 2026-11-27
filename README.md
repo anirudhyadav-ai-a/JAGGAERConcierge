@@ -4,6 +4,15 @@ A multi-agent RAG platform for a banking assistant. A customer asks one question
 which domain agents are needed, each agent uses only its own tools, and the customer gets one answer.
 LLMs read the question and write the answers. Routing, planning, execution order and retries are plain code.
 
+## Documentation
+
+| Doc | Covers |
+| --- | --- |
+| [docs/architecture.md](docs/architecture.md) | request flow, agents, tools and data sources, LLM layer, code map |
+| [docs/running.md](docs/running.md) | install, run offline or on Claude, every setting, troubleshooting |
+| [docs/usage.md](docs/usage.md) | the comparison page, questions to try, the HTTP API and its responses |
+| [docs/cost.md](docs/cost.md) | prices, what a question costs, the two spend limits, checking and reducing spend |
+
 ## Quickstart (no API key needed)
 
 ```bash
@@ -47,7 +56,8 @@ python3 demo.py "Do I have any pending charges?"
 
 The in-app ledger is per machine, so layer 1 is what protects a key shared with someone else.
 
-Rough cost on Claude: about $0.002 for an ambiguous question, and $0.02–0.06 for a full two-agent question.
+Rough cost on Claude: about $0.0002 for an ambiguous question, and $0.01–0.03 for a two-agent question.
+See [docs/cost.md](docs/cost.md).
 
 ## Demo scenarios
 
@@ -117,7 +127,7 @@ In the demo, `customer_id` comes in the request body. In production it comes fro
 
 ## Tests
 
-`make test` runs 31 tests offline:
+`make test` runs the whole suite offline:
 
 - the scenarios above
 - customer isolation
