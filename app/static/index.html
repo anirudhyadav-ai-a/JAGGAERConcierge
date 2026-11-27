@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask once, compare: agent selection before and after</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F2F4F6;
+    --panel: #FFFFFF;
+    --ink: #1B2530;
+    --muted: #5E6B78;
+    --rule: #D3D9DF;
+    --before: #A8641A;
+    --before-tint: #F7EEE3;
+    --after: #0E6E66;
+    --after-tint: #E3F1EF;
+    --warn: #9A3412;
+    --radius-lg: 14px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; }
+  html { font-family: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--ink); background: var(--paper); }
+  body { margin: 0; font-size: 15px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid #2563EB; outline-offset: 2px; }
+
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+         padding: 20px 32px 0; max-width: 1360px; margin: 0 auto; }
+  .top h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+  .top p { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+  .env { display: flex; align-items: center; gap: 14px; font-size: 13.5px; color: var(--muted); flex-wrap: wrap; }
+  .env strong { color: var(--ink); font-weight: 600; }
+  .env select { padding: 6px 8px; border: 1px solid var(--rule); border-radius: var(--radius-sm); background: var(--panel); }
+
+  .ask { max-width: 1360px; margin: 18px auto 0; padding: 0 32px; }
+  .askbox { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--radius-lg); padding: 16px 16px 12px; }
+  .askrow { display: flex; gap: 12px; align-items: flex-end; }
+  .askrow label { position: absolute; left: -9999px; }
+  textarea { flex: 1; resize: vertical; min-height: 52px; max-height: 180px; padding: 12px 14px; border: 1px solid var(--rule);
+             border-radius: var(--radius-sm); background: #FBFCFD; font-size: 16px; line-height: 1.45; }
+  .primary { padding: 13px 22px; border: 0; border-radius: var(--radius-sm); background: var(--ink); color: #fff; font-weight: 600;
+             cursor: pointer; white-space: nowrap; }
+  .primary:disabled { opacity: .55; cursor: progress; }
+  .examples { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; font-size: 13.5px; color: var(--muted); }
+  .chip { border: 1px solid var(--rule); background: var(--paper); border-radius: 999px; padding: 5px 12px; cursor: pointer; font-size: 13.5px; }
+  .chip:hover { border-color: var(--muted); }
+  .ghost { margin-left: auto; border: 0; background: none; color: var(--muted); text-decoration: underline; cursor: pointer; font-size: 13.5px; }
+
+  .split { max-width: 1360px; margin: 18px auto 40px; padding: 0 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .side { background: var(--panel); border: 1px solid var(--rule); border-radius: var(--radius-lg); display: flex; flex-direction: column; min-height: 520px; }
+  .side header { padding: 18px 20px 14px; border-bottom: 1px solid var(--rule); }
+  .side h2 { margin: 0; font-size: 18px; font-weight: 700; display: flex; align-items: baseline; gap: 10px; }
+  .tag { font-size: 12.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+  .before .tag { background: var(--before-tint); color: var(--before); }
+  .after .tag { background: var(--after-tint); color: var(--after); }
+  .side header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+
+  .agents { list-style: none; margin: 0; padding: 10px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; border-bottom: 1px solid var(--rule); }
+  .agent { display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border-radius: var(--radius-sm); border: 1px solid transparent; }
+  .agent .id { font-weight: 700; font-size: 13px; min-width: 30px; }
+  .agent .name { font-weight: 600; font-size: 14px; line-height: 1.3; }
+  .agent .tools { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; word-break: break-word; }
+  .before .agent { cursor: pointer; }
+  .before .agent input { margin: 3px 0 0; accent-color: var(--before); width: 16px; height: 16px; }
+  .before .agent:has(input:checked) { background: var(--before-tint); border-color: #E7CFAE; }
+  .check { margin-top: 14px; background: var(--panel); border: 1px solid var(--rule); border-left: 5px solid var(--muted);
+           border-radius: 0 var(--radius-sm) var(--radius-sm) 0; padding: 12px 16px; }
+  .check.same { border-left-color: #1E6B34; }
+  .check.diff { border-left-color: var(--warn); }
+  .check h2 { font-size: 16px; margin: 0 0 6px; }
+  .check ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 20px; font-size: 13.5px; }
+  .check li b { display: block; font-size: 12.5px; color: var(--muted); font-weight: 600; }
+  .check .ok { color: #1E6B34; font-weight: 600; }
+  .check .no { color: var(--warn); font-weight: 600; }
+  @media (max-width: 900px) { .check ul { grid-template-columns: 1fr; } }
+  .hint { padding: 10px 20px; font-size: 13.5px; color: var(--muted); border-bottom: 1px solid var(--rule); min-height: 41px; }
+  .hint.warn { color: var(--warn); }
+
+  .thread { flex: 1; padding: 6px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .empty { color: var(--muted); font-size: 14px; margin-top: 14px; }
+  .turn { border-top: 1px solid var(--rule); padding-top: 14px; }
+  .turn:first-child { border-top: 0; }
+  .q { color: var(--muted); font-size: 13.5px; margin: 0 0 6px; }
+  .status { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px; margin-bottom: 8px; background: var(--paper); color: var(--ink); }
+  .status.ok { background: #E3F1E6; color: #1E6B34; }
+  .status.clarify { background: #E5ECF7; color: #1F4E8C; }
+  .status.partial, .status.error, .status.budget { background: #FBE9E2; color: var(--warn); }
+  .a { white-space: pre-wrap; margin: 0; font-size: 15px; line-height: 1.55; max-width: 72ch; }
+  .facts { display: grid; grid-template-columns: repeat(5, auto); justify-content: start; column-gap: 22px; row-gap: 2px; margin: 12px 0 0; font-size: 12.5px; }
+  .facts dt { color: var(--muted); }
+  .facts dd { margin: 0; font-weight: 600; grid-row: 2; }
+  .working { color: var(--muted); font-size: 14px; }
+  .trace { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .trace a { color: inherit; }
+
+  @media (max-width: 900px) {
+    .top, .ask, .split { padding-left: 16px; padding-right: 16px; }
+    .split { grid-template-columns: 1fr; }
+    .agents { grid-template-columns: 1fr; }
+    .askrow { flex-direction: column; align-items: stretch; }
+    .facts { grid-template-columns: repeat(3, auto); }
+    .facts dd { grid-row: auto; }
+  }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div>
+      <h1>Ask once, compare</h1>
+      <p>The same question, answered the old way (you pick the agents) and the new way (the platform picks them).</p>
+    </div>
+    <div class="env">
+      <span>Model: <strong id="provider">connecting…</strong></span>
+      <span id="budgetWrap" hidden>Budget left: <strong id="budget"></strong></span>
+      <label>Customer
+        <select id="customer">
+          <option value="C1001">C1001 (demo customer)</option>
+          <option value="C2002">C2002 (second customer)</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <section class="ask" aria-label="Question">
+    <div class="askbox">
+      <form class="askrow" id="askForm">
+        <label for="question">Your question</label>
+        <textarea id="question" rows="2" placeholder="Ask about your cards, transactions, bank policies or spending…" required></textarea>
+        <button class="primary" id="askBtn" type="submit">Ask both</button>
+      </form>
+      <div class="examples">
+        <span>Try:</span>
+        <button class="chip" type="button" data-q="What about my card?">Ambiguous</button>
+        <button class="chip" type="button" data-q="What's happening with my $89.99 Online Store 24 charge, and where is the dispute?">One agent, two tools</button>
+        <button class="chip" type="button" data-q="What is the late payment fee, and how much did I spend on dining this month?">Two agents, one tool each</button>
+        <button class="chip" type="button" data-q="How much did I spend this month and which credit card suits my spending?">One agent needs another</button>
+        <button class="ghost" type="button" id="reset">Start over</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="ask" aria-live="polite"><div class="check" id="check" hidden></div></section>
+
+  <main class="split">
+    <section class="side before" aria-labelledby="beforeTitle">
+      <header>
+        <h2 id="beforeTitle">Before <span class="tag">You choose the agents</span></h2>
+        <p>Tick the agents you think are needed. Only those agents work on the question.</p>
+      </header>
+      <ul class="agents" id="beforeAgents" aria-label="Agents to ask"></ul>
+      <div class="hint" id="beforeHint">Tick at least one agent.</div>
+      <div class="thread" id="beforeThread" aria-live="polite"><p class="empty">The answer from the agents you pick appears here.</p></div>
+    </section>
+
+    <section class="side after" aria-labelledby="afterTitle">
+      <header>
+        <h2 id="afterTitle">After <span class="tag">The platform chooses</span></h2>
+        <p>Nothing to tick. The platform picks the agents from the question.</p>
+      </header>
+      <div class="thread" id="afterThread" aria-live="polite"><p class="empty">The combined answer appears here.</p></div>
+    </section>
+  </main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let agents = [];
+let sessions = { before: null, after: null };
+
+const STATUS = {
+  ok: ["Answered", "ok"], clarify: ["Asked you to clarify", "clarify"], out_of_scope: ["Outside what it can help with", "clarify"],
+  partial: ["Partly answered", "partial"], error: ["Not answered", "error"], budget_exceeded: ["Spending limit reached", "budget"],
+};
+
+async function init() {
+  try {
+    const [health, catalog] = await Promise.all([fetch("/health").then(r => r.json()), fetch("/v1/agents").then(r => r.json())]);
+    agents = catalog;
+    $("provider").textContent = health.llm === "anthropic" ? "Claude" : "Offline mock (free)";
+    if (health.budget_remaining_usd !== undefined) { $("budgetWrap").hidden = false; $("budget").textContent = "$" + health.budget_remaining_usd.toFixed(2); }
+  } catch (e) {
+    $("provider").textContent = "server not reachable";
+    return;
+  }
+  $("beforeAgents").innerHTML = agents.map(a => `
+    <li><label class="agent"><input type="checkbox" value="${esc(a.id)}">
+      <span><span class="id">${esc(a.id)}</span> <span class="name">${esc(a.name)}</span>
+      <span class="tools">${a.tools.map(esc).join(", ")}</span></span></label></li>`).join("");
+  $("beforeAgents").addEventListener("change", updateBeforeHint);
+}
+
+function selected() { return [...document.querySelectorAll("#beforeAgents input:checked")].map(i => i.value); }
+
+function updateBeforeHint() {
+  const n = selected().length;
+  $("beforeHint").classList.remove("warn");
+  $("beforeHint").textContent = n ? `${n} agent${n > 1 ? "s" : ""} selected. Only ${n > 1 ? "these" : "this one"} will work on the question.` : "Tick at least one agent.";
+}
+
+function facts(ctx, agentLabel) {
+  const names = (ctx.agents || []).map(a => a.agent_id).join(", ") || "none";
+  const tools = (ctx.tools_used || []).join(", ") || "none";
+  return `<dl class="facts">
+    <dt>${agentLabel}</dt><dd>${esc(names)}</dd>
+    <dt>Tools run</dt><dd>${esc(tools)}</dd>
+    <dt>LLM calls</dt><dd>${ctx.llm_calls ?? 0}</dd>
+    <dt>Cost</dt><dd>$${(ctx.cost_usd ?? 0).toFixed(4)}</dd>
+    <dt>Time</dt><dd>${((ctx.latency_ms ?? 0) / 1000).toFixed(1)} s</dd></dl>`;
+}
+
+function badge(status) {
+  const [label, cls] = STATUS[status] || [status, "error"];
+  return `<span class="status ${cls}">${esc(label)}</span>`;
+}
+
+function startTurn(threadId, q) {
+  const thread = $(threadId);
+  thread.querySelector(".empty")?.remove();
+  const el = document.createElement("article");
+  el.className = "turn";
+  el.innerHTML = `<p class="q">${esc(q)}</p><p class="working">Working…</p>`;
+  thread.prepend(el);
+  return el;
+}
+
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.detail ? JSON.stringify(data.detail) : `HTTP ${r.status}`);
+  return data;
+}
+
+async function askBefore(q, customer) {
+  const ids = selected();
+  if (!ids.length) {
+    $("beforeHint").classList.add("warn");
+    $("beforeHint").textContent = "Nothing was asked here: tick at least one agent first. This is the step the new way removes.";
+    return null;
+  }
+  const turn = startTurn("beforeThread", q);
+  try {
+    const r = await post("/v1/chat/manual", { customer_id: customer, message: q, agent_ids: ids, session_id: sessions.before });
+    sessions.before = r.session_id;
+    turn.innerHTML = `<p class="q">${esc(q)}</p>${badge(r.status)}<p class="a">${esc(r.response)}</p>
+      ${facts(r.context, "Agents you picked")}<p class="trace">Audit trail: <a href="/v1/audit/${esc(r.trace_id)}" target="_blank" rel="noopener">${esc(r.trace_id)}</a></p>`;
+    return r;
+  } catch (e) {
+    turn.innerHTML = `<p class="q">${esc(q)}</p>${badge("error")}<p class="a">Request failed: ${esc(e.message)}</p>`;
+    return null;
+  }
+}
+
+async function askAfter(q, customer) {
+  const turn = startTurn("afterThread", q);
+  try {
+    const r = await post("/v1/chat", { customer_id: customer, message: q, session_id: sessions.after });
+    sessions.after = r.session_id;
+    turn.innerHTML = `<p class="q">${esc(q)}</p>${badge(r.status)}<p class="a">${esc(r.response)}</p>
+      ${facts(r.context, "Agents it picked")}<p class="trace">Audit trail: <a href="/v1/audit/${esc(r.trace_id)}" target="_blank" rel="noopener">${esc(r.trace_id)}</a></p>`;
+    if (r.context.budget_remaining_usd !== undefined) $("budget").textContent = "$" + r.context.budget_remaining_usd.toFixed(2);
+    return r;
+  } catch (e) {
+    turn.innerHTML = `<p class="q">${esc(q)}</p>${badge("error")}<p class="a">Request failed: ${esc(e.message)}</p>`;
+    return null;
+  }
+}
+
+$("askForm").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const q = $("question").value.trim();
+  if (!q) return;
+  const customer = $("customer").value;
+  $("askBtn").disabled = true; $("askBtn").textContent = "Asking…";
+  $("check").hidden = true;
+  const [left, right] = await Promise.all([askBefore(q, customer), askAfter(q, customer)]);
+  compare(left, right);
+  $("askBtn").disabled = false; $("askBtn").textContent = "Ask both";
+});
+function list(xs) { return xs.length ? xs.join(", ") : "none"; }
+
+function compare(left, right) {
+  const box = $("check");
+  if (!left || !right) { box.hidden = true; return; }
+  const la = (left.context.agents || []).map(a => a.agent_id).sort(), ra = (right.context.agents || []).map(a => a.agent_id).sort();
+  const lt = [...(left.context.tools_used || [])].sort(), rt = [...(right.context.tools_used || [])].sort();
+  const sameAgents = la.join() === ra.join(), sameTools = lt.join() === rt.join();
+  const sameAnswer = left.response.trim() === right.response.trim();
+  const mark = (ok) => ok ? '<span class="ok">Same</span>' : '<span class="no">Different</span>';
+  let headline;
+  if (right.status === "clarify") headline = "The two sides differ: the platform asked what you meant instead of guessing.";
+  else if (sameAgents && sameTools && sameAnswer) headline = "Both sides match: same agents, same tools, same answer.";
+  else if (sameAgents && sameTools) headline = "Same agents and tools. The wording differs slightly because each side is a separate model response.";
+  else headline = "The two sides differ: your selection didn't match what the question needed.";
+  box.className = "check " + (sameAgents && sameTools ? "same" : "diff");
+  box.innerHTML = `<h2>${esc(headline)}</h2><ul>
+    <li><b>Agents</b>${mark(sameAgents)}: you picked ${esc(list(la))}; the platform picked ${esc(list(ra))}</li>
+    <li><b>Tools</b>${mark(sameTools)}: ${sameTools ? esc(list(lt)) : `you ran ${esc(list(lt))}; it ran ${esc(list(rt))}`}</li>
+    <li><b>Cost and calls</b>you $${left.context.cost_usd.toFixed(4)}, ${left.context.llm_calls} calls; platform $${right.context.cost_usd.toFixed(4)}, ${right.context.llm_calls} calls</li></ul>`;
+  box.hidden = false;
+}
+
+$("question").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); $("askForm").requestSubmit(); } });
+document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => { $("question").value = c.dataset.q; $("question").focus(); }));
+$("customer").addEventListener("change", () => $("reset").click());
+$("reset").addEventListener("click", () => {
+  sessions = { before: null, after: null };
+  $("check").hidden = true;
+  $("beforeThread").innerHTML = '<p class="empty">The answer from the agents you pick appears here.</p>';
+  $("afterThread").innerHTML = '<p class="empty">The combined answer appears here.</p>';
+  updateBeforeHint();
+});
+init();
+</script>
+</body>
+</html>
