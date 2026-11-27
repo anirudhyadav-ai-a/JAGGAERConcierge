@@ -95,3 +95,17 @@ def test_policy_retrieval_ranks_the_right_policy_first(query, expected):
     inv = asyncio.run(a13.tools[0].run({"query": query}, ToolContext("C1001", "s", "t", data=a13.data)))
     assert inv.output["passages"][0]["id"] == expected
     assert f"[{expected}]" in inv.output["summary"]
+
+
+def test_transaction_search_sends_a_bounded_number_of_rows_to_the_llm(tmp_path):
+    """Count and total cover every match, but only MAX_ROWS rows go into the prompt, however big the data."""
+    from app.agents import transactions as a12
+    rows = ["id,customer_id,date,merchant,category,amount,status"]
+    rows += [f"T{i},C1,2026-11-{1 + i % 26:02d},Shop {i},shopping,10.00,posted" for i in range(5000)]
+    (tmp_path / "transactions.csv").write_text("\n".join(rows) + "\n")
+    view = DataCatalog(tmp_path, CFG.today).view("A12", ["transactions", "disputes"])
+    out = asyncio.run(a12.search_transactions.run({"query": "shopping"}, ToolContext("C1", "s", "t", data=view))).output
+    assert out["count"] == 5000 and out["total"] == 50000.00
+    assert len(out["transactions"]) == a12.MAX_ROWS == out["shown"]
+    assert out["transactions"][0]["date"] >= out["transactions"][-1]["date"]   # newest first
+    assert "newest 20 of 5000 shown" in out["summary"]

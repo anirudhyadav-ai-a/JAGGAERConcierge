@@ -5,7 +5,12 @@ Start the server with `make serve` (see [running.md](running.md)).
 
 ## The comparison page
 
-Open http://localhost:8000. One question goes to two sides at once:
+There are two versions of the page and they behave the same:
+
+- **React app:** http://localhost:5173 with `make dev`, or http://localhost:8000/app/ after `make frontend-build`
+- **Original single-file page:** http://localhost:8000
+
+One question goes to two sides at once:
 
 - **Before: "You choose the agents".** Tick the agents (A11–A14) you think the question needs. Each box shows
   the agent's name and tools.
@@ -25,14 +30,17 @@ A strip under the question compares the two answers:
 | Strip says | Meaning |
 | --- | --- |
 | Both sides match (green) | same agents, same tools, same answer |
-| Same agents and tools, wording differs | expected on live Claude: each side is a separate model response |
-| The platform asked what you meant instead of guessing | the question was ambiguous, so no agent ran on the right |
+| Same agents and tools, wording differs (green) | expected on live Claude: each side is a separate model response |
+| Same agents, slightly different tools (green) | your selection was right; one side's agent called an extra tool, which separate model runs can do |
+| The platform asked what you meant instead of guessing (red) | the question was ambiguous, so no agent ran on the right |
 | Your selection didn't match what the question needed (red) | you ticked different agents than the question needs |
+
+Only the agent choice is yours, so the strip is green whenever both sides used the same agents.
 
 Each answer shows a status (Answered, Asked you to clarify, Partly answered, Not answered, Spending limit reached),
 the agents and tools used, LLM calls, cost, time, and a link to its audit trail. **Start over** clears both sides.
 
-The header shows which model is in use ("Claude" or "Offline mock (free)") and, on Claude, the budget left.
+The header shows the model in use ("Claude") and the budget left.
 
 ## Questions to try
 

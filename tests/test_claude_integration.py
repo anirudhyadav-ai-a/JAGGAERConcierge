@@ -94,3 +94,30 @@ def test_cost_formula():
     assert cost_usd("claude-sonnet-5-5", 0, 1_000_000) == pytest.approx(10.0)
     assert cost_usd("claude-haiku-5-5", 1_000_000, 1_000_000) == pytest.approx(0.60)
     assert cost_usd("some-future-model", 1_000_000, 0) == pytest.approx(10.0)   # unknown -> priced high
+
+
+def test_router_on_sonnet_does_not_send_a_rejected_tool_choice(tmp_path):
+    """Sonnet/Opus 5.5 reject forced tool_choice of type "tool" and "any"; the router must use "auto"."""
+    p, client = claude_platform(tmp_path, intent_model="claude-sonnet-5-5")
+    r = run(p.handle("What is the late payment fee, and how much did I spend on dining this month?", "C1001"))
+    assert r.status == "ok"
+    intent = next(k for k in client.requests if any(t["name"] == "route_intents" for t in k.get("tools", [])))
+    assert intent["tool_choice"] == {"type": "auto"}
+
+
+def test_refusal_from_the_router_is_reported_plainly(tmp_path):
+    p, _ = claude_platform(tmp_path, client=FakeAsyncAnthropic(refuse_purpose="intent"))
+    r = run(p.handle("What about my card?", "C1001"))
+    assert r.status == "error" and "declined" in r.response
+    # a refused request still bills its input tokens, so it must be in the ledger
+    ledger = json.loads((tmp_path / "ledger.json").read_text())
+    assert ledger["calls"] == 1 and ledger["spent_usd"] > 0 and r.context["cost_usd"] > 0
+
+
+def test_refusal_inside_an_agent_fails_that_agent_only(tmp_path):
+    p, _ = claude_platform(tmp_path, client=FakeAsyncAnthropic(refuse_purpose="agent"))
+    r = run(p.handle("What is the late payment fee, and how much did I spend on dining this month?", "C1001"))
+    assert r.status == "error"
+    assert all(a["status"] != "ok" for a in r.context["agents"])
+    assert "collate" not in r.context["llm_calls_by_step"]   # nothing to combine: no paid collate call
+    assert "couldn't complete" in r.response

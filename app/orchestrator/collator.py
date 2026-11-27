@@ -13,7 +13,8 @@ from .state import OrchestrationState
 
 COLLATE_SYSTEM = """You compose the final reply to a banking customer from specialist agent results.
 - Answer every part of the customer's question that an agent answered, in a natural order.
-- Use only facts from the agent results; keep numbers and policy citations exactly.
+- Use only facts from the agent results; keep numbers and policy citations exactly. Don't add comparisons,
+  estimates or claims that the agent results don't contain.
 - If an agent failed, say briefly that part could not be completed right now.
 - Be concise and friendly. No internal ids for agents or tasks."""
 
@@ -54,7 +55,11 @@ class ResponseCollator:
                             "error": (r.error if r else "not executed")})
         ok = [p for p in payload if p["status"] == "ok"]
 
-        if len(ok) == 1 and len(payload) == 1 and not state.detail:
+        if not ok:
+            # nothing to combine: say so without paying for an LLM call
+            names = ", ".join(p["agent_name"] for p in payload) or "the agents"
+            text = f"Sorry, I couldn't complete that request right now ({names} didn't finish). Please try again shortly."
+        elif len(ok) == 1 and len(payload) == 1 and not state.detail:
             text = ok[0]["output"]               # single agent: no extra LLM hop needed
         else:
             system = COLLATE_SYSTEM + (DETAIL_SUFFIX if state.detail else "")

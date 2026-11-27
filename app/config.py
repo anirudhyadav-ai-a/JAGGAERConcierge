@@ -14,15 +14,17 @@ except ImportError:  # pragma: no cover
 
 
 def _provider() -> str:
-    p = os.getenv("LLM_PROVIDER", "auto").lower()
-    if p == "auto":
+    """Claude by default. The deterministic mock is only for the test suite and CI (LLM_PROVIDER=mock),
+    so the app, the demo and the UI always give real answers from real model calls."""
+    p = os.getenv("LLM_PROVIDER", "anthropic").lower()
+    if p == "auto":   # older setting: Claude when a key is set
         return "anthropic" if os.getenv("ANTHROPIC_API_KEY") else "mock"
     return p
 
 
 @dataclass(frozen=True)
 class Settings:
-    # "auto" -> Claude when ANTHROPIC_API_KEY is set, otherwise the offline mock.
+    # "anthropic" (default): real Claude calls, needs ANTHROPIC_API_KEY. "mock": tests and CI only.
     llm_provider: str = field(default_factory=_provider)
 
     # Model per job: a small fast model routes, a stronger model reasons over tools and writes.

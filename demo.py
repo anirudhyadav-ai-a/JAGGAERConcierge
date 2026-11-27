@@ -1,8 +1,8 @@
 """Run the interview scenarios end to end and show route, agents, tools, LLM calls, cost and answer.
 
-    python demo.py                 # Claude if ANTHROPIC_API_KEY is set (in env or .env), else offline mock
+    python demo.py                 # real Claude calls; needs ANTHROPIC_API_KEY (in the environment or .env)
     python demo.py "your question" # ask your own question
-    LLM_PROVIDER=mock python demo.py
+    LLM_PROVIDER=mock python demo.py   # offline mock, for CI only
 """
 import asyncio
 import logging
@@ -21,9 +21,12 @@ SCENARIOS = [
 
 
 async def main(questions):
-    p = AgentPlatform(audit_path=None)
+    try:
+        p = AgentPlatform(audit_path=None)
+    except RuntimeError as exc:
+        raise SystemExit(f"Cannot start: {exc}")
     print(f"LLM provider: {p.llm.name}"
-          + (f" | budget remaining ${p.budget.remaining:.4f}" if p.budget is not None else " (offline, free)"))
+          + (f" | budget remaining ${p.budget.remaining:.4f}" if p.budget is not None else " (offline mock: test mode, not Claude)"))
     for i, (label, q) in enumerate(questions, 1):
         r = await p.handle(q, customer_id="C1001")
         tools = [f"{e['data']['agent']}.{e['data']['tool']}" for e in p.audit.trace(r.trace_id) if e["stage"] == "tool"]

@@ -7,6 +7,9 @@ from ..tools import ToolError, tool
 from .base import Agent
 
 _CATS = ["dining", "groceries", "travel", "shopping"]
+# Count and total cover every match; only this many rows go back to the LLM, newest first, so the prompt
+# (and its cost) stays the same size whether a customer has 10 transactions or 10 million.
+MAX_ROWS = 20
 
 
 @tool("search_transactions",
@@ -31,9 +34,12 @@ def search_transactions(ctx, query: str = "", category: str | None = None, days:
         elif cat_hit:
             rows = [t for t in rows if t["category"] in cat_hit]
     total = round(sum(t["amount"] for t in rows), 2)
-    top = ", ".join(f"{t['merchant']} ${t['amount']:,.2f} on {t['date']} ({t['status']})" for t in rows[:5])
-    return {"transactions": rows, "count": len(rows), "total": total,
-            "summary": f"Found {len(rows)} transaction(s) totalling ${total:,.2f}: {top}."}
+    rows.sort(key=lambda t: (t["date"], t["id"]), reverse=True)
+    shown = rows[:MAX_ROWS]
+    top = ", ".join(f"{t['merchant']} ${t['amount']:,.2f} on {t['date']} ({t['status']})" for t in shown[:5])
+    more = f" (newest {len(shown)} of {len(rows)} shown)" if len(rows) > len(shown) else ""
+    return {"transactions": shown, "count": len(rows), "total": total, "shown": len(shown),
+            "summary": f"Found {len(rows)} transaction(s) totalling ${total:,.2f}{more}: {top}."}
 
 
 @tool("get_dispute_status", "Get the status of a disputed transaction / dispute case.",

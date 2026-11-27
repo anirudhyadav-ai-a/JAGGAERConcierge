@@ -73,8 +73,8 @@ MCP server without changes.
 ```
 MeteredLLM  ── counts calls per request, enforces the call cap, reserves and settles cost
    └─ provider
-        MockLLM       app/llm/mock.py           deterministic, free, used offline and in tests
-        AnthropicLLM  app/llm/anthropic_llm.py  real Claude, chosen when ANTHROPIC_API_KEY is set
+        AnthropicLLM  app/llm/anthropic_llm.py  real Claude: the app, demo and UI always use this
+        MockLLM       app/llm/mock.py           deterministic stand-in for the test suite and CI only
 ```
 
 | Step | Model (default) | Request settings |
@@ -91,11 +91,12 @@ in [cost.md](cost.md).
 | Question shape | Calls | Example |
 | --- | --- | --- |
 | Ambiguous or out of scope | 1 | "What about my card?" |
-| One agent, two tools | 4 (router 1 + agent 3) | "…$89.99 Online Store 24 charge, and where is the dispute?" |
+| One agent, two tools | 3–4 (router 1 + agent 2–3) | "…$89.99 Online Store 24 charge, and where is the dispute?" |
 | Two agents, one tool each | 6 (router 1 + 2 + 2 + collate 1) | "What is the late payment fee, and how much did I spend on dining?" |
 | One agent depends on another | 6, in two waves | "How much did I spend and which credit card suits my spending?" |
 
-A single-agent answer skips the collator. The cap is `MAX_LLM_CALLS_PER_REQUEST` (default 12).
+A single-agent answer skips the collator. On Claude, an agent can call both of its tools in one step (as A12 does
+for the dispute question), which saves a call. The cap is `MAX_LLM_CALLS_PER_REQUEST` (default 12).
 
 ## Code map
 
@@ -113,10 +114,25 @@ app/
   data/              repositories over data/ and per-agent SourceViews
   llm/               mock, Anthropic provider, MeteredLLM, BudgetGuard
   audit/             JSONL audit logger with redaction
-  static/index.html  before/after comparison page
+  static/index.html  original single-file comparison page (served at /); the built React app is served at /app/
 data/                the demo's data files
-tests/               offline test suite, including a fake Anthropic client
+frontend/            React app (Vite + TypeScript): the same comparison page as components
+  src/api.ts         typed calls to the backend
+  src/compare.ts     the before/after comparison rules
+  src/components/    Header, AskBar, ComparisonStrip, AgentPicker, Turn
+tests/               test suite (no API calls), including a fake Anthropic client
+scripts/scale_check.py   times the tools on a million generated transactions
 ```
+
+## Scaling the data
+
+Agents never see raw tables. Tools query a repository for one customer and return totals plus at most 20 rows,
+so the prompt, the latency and the cost of a question stay flat as the data grows.
+
+`python scripts/scale_check.py` measures it with 1,000,000 generated transactions across 10,000 customers. Each tool
+call takes about 0.1 ms; the file-based store loads in about 2 seconds and uses about 600 MB. That in-memory store is
+the demo's limit, not the design's: past one machine's memory, or with several API instances, replace the repository
+classes with a database (indexes on `customer_id` and `date`) and keep their methods. No agent or tool changes.
 
 ## Moving to production
 

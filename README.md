@@ -4,29 +4,55 @@ A multi-agent RAG platform for a banking assistant. A customer asks one question
 which domain agents are needed, each agent uses only its own tools, and the customer gets one answer.
 LLMs read the question and write the answers. Routing, planning, execution order and retries are plain code.
 
+## For reviewers
+
+Everything runs on real Claude, so you need an API key. **Ask the author for the review key**; it's shared
+privately, never committed. It works for 7 days and sits in a Claude Console workspace with a spend limit.
+
+```bash
+git clone https://github.com/anirudhyadav-ai-a/JAGGAERConcierge.git && cd JAGGAERConcierge
+python3 -m venv .venv && source .venv/bin/activate
+make install frontend-install         # Python packages + React packages (needs Node.js 20+)
+cp .env.example .env                  # then paste the key after ANTHROPIC_API_KEY=
+make dev                              # open http://localhost:5173
+```
+
+Then try the four example chips on the page, ticking the agents each question needs on the left. To check the
+interview answers automatically, run `make live-check` (about $0.04). Each question on the page costs about
+$0.01–0.05; see [docs/cost.md](docs/cost.md). The test suite (`make test`) needs no key and costs nothing.
+
 ## Documentation
 
 | Doc | Covers |
 | --- | --- |
 | [docs/architecture.md](docs/architecture.md) | request flow, agents, tools and data sources, LLM layer, code map |
-| [docs/running.md](docs/running.md) | install, run offline or on Claude, every setting, troubleshooting |
+| [docs/running.md](docs/running.md) | install, add your key, run it (React or plain page), tests, scale check, settings |
 | [docs/usage.md](docs/usage.md) | the comparison page, questions to try, the HTTP API and its responses |
 | [docs/cost.md](docs/cost.md) | prices, what a question costs, the two spend limits, checking and reducing spend |
 | [SPEC.md](SPEC.md) | the build spec: goals, design rules, acceptance tests, build order, definition of done |
 
-## Quickstart (no API key needed)
+## Quickstart
 
 ```bash
 git clone <this repo> && cd JAGGAERConcierge
 python3 -m pip install -r requirements.txt     # Python 3.11+
-python3 demo.py                                # runs the scenarios on the free offline mock LLM
-python3 -m pytest -q                           # runs the full suite offline
+cp .env.example .env                           # put your Claude API key in it
+python3 demo.py                                # runs the scenarios on Claude
+python3 scripts/live_check.py                  # checks the interview answers on Claude (a few cents)
+python3 -m pytest -q                           # the test suite (no API calls)
 ```
 
 ## See before vs after in the browser
 
 ```bash
 make serve                    # then open http://localhost:8000
+```
+
+Or with the React frontend (needs Node.js 20+):
+
+```bash
+make frontend-install         # once
+make dev                      # backend :8000 + React :5173, then open http://localhost:5173
 ```
 
 Ask one question and it goes to both sides. On the left (before) you tick the agents; on the right (after) the
@@ -45,6 +71,20 @@ python3 demo.py "Do I have any pending charges?"
 
 `.env` is git-ignored. Never commit a key.
 
+### Verified on Claude
+
+`python3 scripts/live_check.py` asks the four interview questions on real Claude and checks each answer for the
+facts the spec requires. Last run (November 2026):
+
+| Question | Result | Calls | Cost |
+| --- | --- | --- | --- |
+| What about my card? | asks which of card recommendation, transactions or policy you mean; no agent runs | 1 | $0.0003 |
+| $89.99 Online Store 24 charge and its dispute | T9004, $89.99, dispute D-55120 under review, provisional credit issued | 3 | $0.007 |
+| Late payment fee + dining spend | $35 [POL-LATE-03] and $188.70, agents in parallel | 6 | $0.011 |
+| Spend this month + best card | $1,525.84 by category, then Flat 2% Cash Back Card (~$366.20/yr), A14 before A11 | 6 | $0.019 |
+
+Wording changes from run to run; the facts, agents and tools don't.
+
 ### Spending protection (two layers)
 
 1. **Console (authoritative).** In the Claude Console, create a dedicated workspace, set its monthly spend
@@ -57,7 +97,8 @@ python3 demo.py "Do I have any pending charges?"
 
 The in-app ledger is per machine, so layer 1 is what protects a key shared with someone else.
 
-Rough cost on Claude: about $0.0002 for an ambiguous question, and $0.01–0.03 for a two-agent question.
+Measured cost on Claude: $0.0003 for an ambiguous question, and $0.01–0.03 for a two-agent question; the four
+interview questions together cost about $0.04.
 See [docs/cost.md](docs/cost.md).
 
 ## Demo scenarios
@@ -128,7 +169,7 @@ In the demo, `customer_id` comes in the request body. In production it comes fro
 
 ## Tests
 
-`make test` runs the whole suite offline:
+`make test` runs the whole suite without calling the API:
 
 - the scenarios above
 - customer isolation

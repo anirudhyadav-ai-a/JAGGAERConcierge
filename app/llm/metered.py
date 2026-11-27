@@ -6,7 +6,7 @@ import contextvars
 import json
 from dataclasses import dataclass, field
 
-from .base import LLM, LLMResponse
+from .base import LLM, LLMRefusal, LLMResponse
 from .budget import BudgetGuard, CallLimitExceeded
 
 
@@ -61,4 +61,6 @@ class MeteredLLM:
             cost = self.budget.settle(reserved, resp.model or model, resp.usage.input_tokens, resp.usage.output_tokens)
             if meter is not None:
                 meter.cost_usd += cost
+        if resp.refused:
+            raise LLMRefusal(f"{resp.model or purpose} declined this request")
         return resp

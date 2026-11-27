@@ -14,6 +14,11 @@ from ..models import AgentResult, Task, TaskStatus
 from ..tools import Tool, ToolContext
 
 
+# Appended to every agent's prompt: fewer, focused tool calls make answers steadier and cheaper.
+TOOL_USE_RULE = ("\nCall only the tools needed to answer the question you were given, and no others. "
+                 "Answer only that question.")
+
+
 @dataclass
 class Agent:
     id: str
@@ -49,7 +54,7 @@ class Agent:
         data: dict = {}
 
         for _ in range(self.max_steps):
-            resp = await self.llm.complete(self.system_prompt, messages, tools=specs, purpose="agent")
+            resp = await self.llm.complete(self.system_prompt + TOOL_USE_RULE, messages, tools=specs, purpose="agent")
             if not resp.tool_calls:
                 return AgentResult(task.id, self.id, TaskStatus.OK, resp.text.strip(), data, invocations,
                                    latency_ms=int((time.perf_counter() - start) * 1000))

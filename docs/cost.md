@@ -1,7 +1,7 @@
 # Cost and spend protection
 
-The platform calls a paid LLM (Claude) only when `ANTHROPIC_API_KEY` is set. Without a key, or with
-`LLM_PROVIDER=mock`, every call goes to the free offline mock and costs $0. Tests and CI always use the mock.
+Every question the app answers is a real Claude call, so every question costs money. The automated tests and
+CI never call the API: they use a deterministic stand-in (`LLM_PROVIDER=mock`) and cost $0.
 
 ## Prices used
 
@@ -23,21 +23,23 @@ ledger counts them.
 
 ## What a question costs
 
-These are **estimates**, from measured prompt sizes (about 800 tokens for the router, 120–550 tokens per agent
-call, plus a few hundred tokens the API adds when tools are sent) and typical answer lengths. Your real numbers are
-in the ledger after the first run.
+Measured on real Claude (Haiku 5.5 routing, Sonnet 5.5 agents and collator) with `scripts/live_check.py`,
+November 2026:
 
-| Question shape | LLM calls | Estimated cost |
+| Question | LLM calls | Measured cost |
 | --- | --- | --- |
-| Ambiguous or out of scope ("What about my card?") | 1 Haiku | about $0.0002 |
-| One agent, two tools (the $89.99 dispute question) | 1 Haiku + 3 Sonnet | about $0.007–0.015 |
-| Two agents, one tool each (late fee + dining spend) | 1 Haiku + 5 Sonnet | about $0.01–0.025 |
-| One agent depends on another (spend + card advice) | 1 Haiku + 5 Sonnet | about $0.01–0.025 |
+| Ambiguous ("What about my card?") | 1 Haiku | $0.0003 |
+| One agent, two tools (the $89.99 dispute question) | 1 Haiku + 2 Sonnet | $0.007 |
+| Two agents, one tool each (late fee + dining spend) | 1 Haiku + 5 Sonnet | $0.011–0.012 |
+| One agent depends on another (spend + card advice) | 1 Haiku + 5 Sonnet | $0.019–0.026 |
 
-Longer answers or more thinking between tool calls can push a two-agent question to about $0.06. Running the four
-demo questions once costs about $0.03–0.07. **A $5 budget covers roughly 200–500 two-agent questions.**
+The four interview questions together cost about **$0.04**. Asking a question on the comparison page runs it twice
+(once per side), so about $0.02–0.05 per two-agent question there. **A $5 budget covers roughly 250 two-agent
+questions on the page, or about 400 through the API.** Longer answers cost more: almost all the cost is Sonnet
+output. Routing on Haiku is close to free.
 
-Almost all of the cost is Sonnet output. Routing on Haiku is close to free.
+The cost doesn't grow with the amount of data: tools send the model totals plus at most 20 rows, whether a
+customer has ten transactions or ten thousand.
 
 ## Two layers of protection
 
@@ -109,7 +111,7 @@ Example `GET /v1/usage`:
 }
 ```
 
-(Illustrative numbers. In mock mode `/v1/usage` says there are no paid calls.)
+(Illustrative numbers.)
 
 To reset the in-app ledger, stop the app and delete `.usage/ledger.json`. That only resets the local count; it
 doesn't change what the Console has billed.
@@ -118,7 +120,6 @@ doesn't change what the Console has billed.
 
 | Lever | How | Trade-off |
 | --- | --- | --- |
-| Develop on the mock | `LLM_PROVIDER=mock` | answers are rule-based, not Claude |
 | Lower the budget for demos | `BUDGET_USD=1` | stops sooner |
 | Run agents on Haiku | `AGENT_MODEL=claude-haiku-5-5`, `COLLATE_MODEL=claude-haiku-5-5` | about 20× cheaper per token; weaker tool use and writing |
 | Fewer tool rounds | `AGENT_MAX_TOOL_STEPS=3` | an agent may stop before finishing |
@@ -128,8 +129,8 @@ doesn't change what the Console has billed.
 
 Prompt caching wouldn't help yet: these prompts are smaller than the minimum size the API caches.
 
-## Known issue
+## Refusals
 
-Don't set `INTENT_MODEL` to `claude-sonnet-5-5` or `claude-opus-5-5`. The provider changes the forced router tool
-to `tool_choice: any`, which those models reject, so every routed question fails. A rejected request isn't billed,
-but nothing gets answered. Keep routing on Haiku until this is fixed.
+If Claude declines a request (`stop_reason: refusal`), its input tokens are still billed. The ledger records that
+cost, and the answer says Claude declined. When every agent in a request fails, the collator skips its own LLM call,
+since there's nothing to combine.

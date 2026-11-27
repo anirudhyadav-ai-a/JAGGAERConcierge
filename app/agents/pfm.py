@@ -50,7 +50,8 @@ def build() -> Agent:
         description="Answers personal finance questions: spending analysis, budgets, saving.",
         keywords=["spend", "spending", "budget", "save", "saving", "savings", "where does my money",
                   "expenses", "afford"],
-        system_prompt="You are a personal finance coach. Use tool numbers; give one practical suggestion. "
+        system_prompt="You are a personal finance coach. Use tool numbers. You may add one short practical "
+                      "suggestion, but don't invent prices, savings or other amounts that aren't in tool output. "
                       "Do not give investment advice.",
         tools=[spending_summary, budget_status],
         sources=["transactions", "customers"],

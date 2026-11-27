@@ -31,16 +31,21 @@ class _Messages:
         # Rules from the Claude docs that the live API enforces with a 400:
         if model == "claude-sonnet-5-5" and thinking and thinking.get("type") == "disabled":
             raise FakeBadRequest("thinking.type disabled is not supported; use between_tools")
-        if model == "claude-sonnet-5-5" and choice and choice.get("type") == "tool":
-            raise FakeBadRequest("forced tool_choice is not supported on this model")
+        if model in ("claude-sonnet-5-5", "claude-opus-5-5") and choice and choice.get("type") in ("tool", "any"):
+            raise FakeBadRequest("tool_choice: type \"tool\" and \"any\" are not supported for this model.")
+        tools = kw.get("tools") or []
+        purpose = "intent" if any(t["name"] == "route_intents" for t in tools) else ("agent" if tools else "collate")
+        if self.owner.refuse_purpose == purpose:
+            self.owner.requests[-1]["refused"] = True
+            return Message(id="msg_test", type="message", role="assistant", model=model, content=[],
+                           stop_reason="refusal", stop_sequence=None,
+                           usage=Usage(input_tokens=self.owner.input_tokens, output_tokens=0))
         # Thinking blocks must come back unchanged in tool loops:
         for m in kw["messages"]:
             if m["role"] == "assistant" and any(b.get("type") == "tool_use" for b in m["content"]):
                 if not any(b.get("type") == "thinking" and b.get("signature") == "sig-test" for b in m["content"]):
                     raise FakeBadRequest("assistant turn is missing its thinking block")
 
-        tools = kw.get("tools") or []
-        purpose = "intent" if any(t["name"] == "route_intents" for t in tools) else ("agent" if tools else "collate")
         await asyncio.sleep(0)
         r = await self.owner.brain.complete(kw["system"], kw["messages"], tools=tools, purpose=purpose)
         content = [ThinkingBlock(type="thinking", thinking="(reasoning)", signature="sig-test")]
@@ -53,8 +58,9 @@ class _Messages:
 
 
 class FakeAsyncAnthropic:
-    def __init__(self, input_tokens: int = 1200, output_tokens: int = 300):
+    def __init__(self, input_tokens: int = 1200, output_tokens: int = 300, refuse_purpose: str | None = None):
         self.requests: list[dict] = []
+        self.refuse_purpose = refuse_purpose   # "intent", "agent" or "collate": that step answers with stop_reason "refusal"
         self.brain = MockLLM()
         self.input_tokens = input_tokens
         self.output_tokens = output_tokens

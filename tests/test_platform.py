@@ -153,3 +153,22 @@ def test_ui_and_manual_api():
     body = c.post("/v1/chat/manual", json={"customer_id": "C1001", "message": "Any pending charges?",
                                            "agent_ids": ["A12"]}).json()
     assert body["path"] == "manual" and "latency_ms" in body["context"]
+
+
+def test_react_frontend_is_served_when_built(tmp_path):
+    from fastapi import FastAPI
+    from app.main import mount_frontend
+    (tmp_path / "index.html").write_text("<div id=root></div>")
+    built = FastAPI()
+    assert mount_frontend(built, tmp_path) is True
+    r = TestClient(built).get("/app/")
+    assert r.status_code == 200 and "root" in r.text
+
+
+def test_react_frontend_explains_how_to_build_when_missing(tmp_path):
+    from fastapi import FastAPI
+    from app.main import mount_frontend
+    bare = FastAPI()
+    assert mount_frontend(bare, tmp_path / "nope") is False
+    r = TestClient(bare).get("/app/")
+    assert r.status_code == 404 and "make frontend-build" in r.json()["detail"]

@@ -89,6 +89,14 @@
   .status.clarify { background: #E5ECF7; color: #1F4E8C; }
   .status.partial, .status.error, .status.budget { background: #FBE9E2; color: var(--warn); }
   .a { white-space: pre-wrap; margin: 0; font-size: 15px; line-height: 1.55; max-width: 72ch; }
+  .a.md { white-space: normal; }
+  .md p { margin: 0 0 10px; } .md p:last-child { margin-bottom: 0; }
+  .md ul, .md ol { margin: 0 0 10px; padding-left: 22px; }
+  .md h3 { font-size: 15px; margin: 14px 0 6px; }
+  .md table { border-collapse: collapse; margin: 4px 0 12px; font-size: 14px; display: block; overflow-x: auto; max-width: 100%; }
+  .md th, .md td { border: 1px solid var(--rule); padding: 5px 10px; text-align: left; }
+  .md th { background: var(--paper); font-weight: 600; }
+  .md code { font-size: 13px; background: var(--paper); padding: 1px 4px; border-radius: 4px; }
   .facts { display: grid; grid-template-columns: repeat(5, auto); justify-content: start; column-gap: 22px; row-gap: 2px; margin: 12px 0 0; font-size: 12.5px; }
   .facts dt { color: var(--muted); }
   .facts dd { margin: 0; font-weight: 600; grid-row: 2; }
@@ -179,7 +187,7 @@ async function init() {
   try {
     const [health, catalog] = await Promise.all([fetch("/health").then(r => r.json()), fetch("/v1/agents").then(r => r.json())]);
     agents = catalog;
-    $("provider").textContent = health.llm === "anthropic" ? "Claude" : "Offline mock (free)";
+    $("provider").textContent = health.llm === "anthropic" ? "Claude" : "Test mock (not Claude)";
     if (health.budget_remaining_usd !== undefined) { $("budgetWrap").hidden = false; $("budget").textContent = "$" + health.budget_remaining_usd.toFixed(2); }
   } catch (e) {
     $("provider").textContent = "server not reachable";
@@ -244,7 +252,7 @@ async function askBefore(q, customer) {
   try {
     const r = await post("/v1/chat/manual", { customer_id: customer, message: q, agent_ids: ids, session_id: sessions.before });
     sessions.before = r.session_id;
-    turn.innerHTML = `<p class="q">${esc(q)}</p>${badge(r.status)}<p class="a">${esc(r.response)}</p>
+    turn.innerHTML = `<p class="q">${esc(q)}</p>${badge(r.status)}<div class="a md">${md(r.response)}</div>
       ${facts(r.context, "Agents you picked")}<p class="trace">Audit trail: <a href="/v1/audit/${esc(r.trace_id)}" target="_blank" rel="noopener">${esc(r.trace_id)}</a></p>`;
     return r;
   } catch (e) {
@@ -258,7 +266,7 @@ async function askAfter(q, customer) {
   try {
     const r = await post("/v1/chat", { customer_id: customer, message: q, session_id: sessions.after });
     sessions.after = r.session_id;
-    turn.innerHTML = `<p class="q">${esc(q)}</p>${badge(r.status)}<p class="a">${esc(r.response)}</p>
+    turn.innerHTML = `<p class="q">${esc(q)}</p>${badge(r.status)}<div class="a md">${md(r.response)}</div>
       ${facts(r.context, "Agents it picked")}<p class="trace">Audit trail: <a href="/v1/audit/${esc(r.trace_id)}" target="_blank" rel="noopener">${esc(r.trace_id)}</a></p>`;
     if (r.context.budget_remaining_usd !== undefined) $("budget").textContent = "$" + r.context.budget_remaining_usd.toFixed(2);
     return r;
@@ -281,6 +289,40 @@ $("askForm").addEventListener("submit", async (ev) => {
 });
 function list(xs) { return xs.length ? xs.join(", ") : "none"; }
 
+// Claude answers in Markdown. Escape everything first, then add a small, fixed set of formatting:
+// paragraphs, headings, bullet and numbered lists, tables, **bold** and `code`. Nothing else becomes HTML.
+function md(text) {
+  const inline = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  const cells = (row) => row.trim().replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+  const lines = String(text ?? "").split("\n");
+  let html = "", i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) { i++; continue; }
+    if (/^\s*\|.*\|\s*$/.test(line) && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1] || "")) {
+      const head = cells(line); i += 2; const body = [];
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])) body.push(cells(lines[i++]));
+      html += "<table><thead><tr>" + head.map(c => `<th>${inline(c)}</th>`).join("") + "</tr></thead><tbody>"
+        + body.map(r => "<tr>" + r.map(c => `<td>${inline(c)}</td>`).join("") + "</tr>").join("") + "</tbody></table>";
+      continue;
+    }
+    const h = line.match(/^\s*#{1,6}\s+(.*)$/);
+    if (h) { html += `<h3>${inline(h[1])}</h3>`; i++; continue; }
+    const bullet = /^\s*[-*]\s+/, num = /^\s*\d+[.)]\s+/;
+    if (bullet.test(line) || num.test(line)) {
+      const re = bullet.test(line) ? bullet : num, tag = re === bullet ? "ul" : "ol"; const items = [];
+      while (i < lines.length && re.test(lines[i])) items.push(lines[i++].replace(re, ""));
+      html += `<${tag}>` + items.map(t => `<li>${inline(t)}</li>`).join("") + `</${tag}>`;
+      continue;
+    }
+    const para = [];
+    while (i < lines.length && lines[i].trim() && !/^\s*([-*]\s|\d+[.)]\s|#|\|)/.test(lines[i])) para.push(lines[i++]);
+    if (!para.length) para.push(lines[i++]);
+    html += `<p>${para.map(inline).join("<br>")}</p>`;
+  }
+  return html;
+}
+
 function compare(left, right) {
   const box = $("check");
   if (!left || !right) { box.hidden = true; return; }
@@ -289,12 +331,14 @@ function compare(left, right) {
   const sameAgents = la.join() === ra.join(), sameTools = lt.join() === rt.join();
   const sameAnswer = left.response.trim() === right.response.trim();
   const mark = (ok) => ok ? '<span class="ok">Same</span>' : '<span class="no">Different</span>';
+  // Only the agent choice is the user's; tools and wording can vary between two separate model runs.
   let headline;
   if (right.status === "clarify") headline = "The two sides differ: the platform asked what you meant instead of guessing.";
-  else if (sameAgents && sameTools && sameAnswer) headline = "Both sides match: same agents, same tools, same answer.";
-  else if (sameAgents && sameTools) headline = "Same agents and tools. The wording differs slightly because each side is a separate model response.";
-  else headline = "The two sides differ: your selection didn't match what the question needed.";
-  box.className = "check " + (sameAgents && sameTools ? "same" : "diff");
+  else if (!sameAgents) headline = "The two sides differ: your selection didn't match what the question needed.";
+  else if (sameTools && sameAnswer) headline = "Both sides match: same agents, same tools, same answer.";
+  else if (sameTools) headline = "Same agents and tools. The wording differs slightly because each side is a separate model response.";
+  else headline = "Same agents. They called slightly different tools, because each side is a separate model run; your selection matched.";
+  box.className = "check " + (sameAgents && right.status !== "clarify" ? "same" : "diff");
   box.innerHTML = `<h2>${esc(headline)}</h2><ul>
     <li><b>Agents</b>${mark(sameAgents)}: you picked ${esc(list(la))}; the platform picked ${esc(list(ra))}</li>
     <li><b>Tools</b>${mark(sameTools)}: ${sameTools ? esc(list(lt)) : `you ran ${esc(list(lt))}; it ran ${esc(list(rt))}`}</li>
