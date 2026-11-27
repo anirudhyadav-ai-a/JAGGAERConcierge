@@ -9,11 +9,13 @@ interface Props {
   health: Health | null;
   loadError: boolean;
   budget: number | undefined;
+  plans?: number;
+  onClearPlans?: () => void;
   customer: string;
   onCustomerChange: (id: string) => void;
 }
 
-export function Header({ health, loadError, budget, customer, onCustomerChange }: Props) {
+export function Header({ health, loadError, budget, plans, onClearPlans, customer, onCustomerChange }: Props) {
   const provider = loadError
     ? "server not reachable"
     : !health
@@ -34,6 +36,16 @@ export function Header({ health, loadError, budget, customer, onCustomerChange }
         {budget !== undefined && (
           <span>
             Budget left: <strong data-testid="budget">${budget.toFixed(2)}</strong>
+          </span>
+        )}
+        {plans !== undefined && (
+          <span>
+            Cached plans: <strong data-testid="plans">{plans}</strong>
+            {plans > 0 && onClearPlans && (
+              <button type="button" className="ghost inline" onClick={onClearPlans}>
+                Clear
+              </button>
+            )}
           </span>
         )}
         <label>

@@ -27,7 +27,8 @@ def _score(q: set[str], chunk: dict) -> int:
 @tool("search_policies",
       "Search bank policy documents (fees, disputes, late payment, credit limits). "
       "Returns passages with policy ids to cite.",
-      {"query": {"type": "string"}, "top_k": {"type": "integer", "default": 2}}, required=["query"])
+      {"query": {"type": "string"}, "top_k": {"type": "integer", "default": 2}}, required=["query"],
+      replay_args=("top_k",))
 def search_policies(ctx, query: str, top_k: int = 2):
     q = _tokens(query)
     scored = sorted(((_score(q, c), c) for c in ctx.data.policies.chunks()),

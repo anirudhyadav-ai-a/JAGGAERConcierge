@@ -33,7 +33,10 @@ November 2026:
 | Two agents, one tool each (late fee + dining spend) | 1 Haiku + 5 Sonnet | $0.011–0.012 |
 | One agent depends on another (spend + card advice) | 1 Haiku + 5 Sonnet | $0.019–0.026 |
 
-The four interview questions together cost about **$0.04**. Asking a question on the comparison page runs it twice
+| Plan-cache hit (the two-agent question asked again) | 1 Haiku + 1 Sonnet | $0.0034–0.0035 |
+
+The four interview questions together cost about **$0.04**. A cache hit on the two-agent question took 2.7–3.2 s
+and $0.0035, against 5.0–5.9 s and $0.011 for the full run that saved the plan. Asking a question on the comparison page runs it twice
 (once per side), so about $0.02–0.05 per two-agent question there. **A $5 budget covers roughly 250 two-agent
 questions on the page, or about 400 through the API.** Longer answers cost more: almost all the cost is Sonnet
 output. Routing on Haiku is close to free.
@@ -125,9 +128,9 @@ doesn't change what the Console has billed.
 | Fewer tool rounds | `AGENT_MAX_TOOL_STEPS=3` | an agent may stop before finishing |
 | Tighter call cap | `MAX_LLM_CALLS_PER_REQUEST=8` | complex questions may return `error` |
 | Smaller output cap | `LLM_MAX_TOKENS=1024` | smaller reservations; long answers may be cut off |
-| Plan cache (planned) | not built yet | would cut a two-agent question from 6 calls to 2 |
+| Plan cache (on by default) | ask similar questions; `CACHE_ENABLED=false` turns it off | a hit skips the agents' reasoning; only the tools and one writing call run |
 
-Prompt caching wouldn't help yet: these prompts are smaller than the minimum size the API caches.
+Claude's own prompt caching isn't used yet.
 
 ## Refusals
 

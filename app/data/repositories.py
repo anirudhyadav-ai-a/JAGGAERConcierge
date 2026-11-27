@@ -38,6 +38,12 @@ class TransactionRepository:
                 row["amount"] = float(row["amount"])
                 self._by_customer.setdefault(cid, []).append(row)
 
+    def merchants(self) -> set[str]:
+        """Known merchant names, used to spot a {merchant} slot in a question."""
+        if not hasattr(self, "_merchants"):
+            self._merchants = {t["merchant"] for rows in self._by_customer.values() for t in rows}
+        return self._merchants
+
     def for_customer(self, customer_id: str, since: str | None = None) -> list[dict]:
         rows = self._by_customer.get(customer_id, [])
         return [dict(t) for t in rows if since is None or t["date"] >= since]

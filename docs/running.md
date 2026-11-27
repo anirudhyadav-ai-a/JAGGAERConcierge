@@ -94,7 +94,17 @@ The tests never call the paid API. They run the real pipeline against a determin
 model rules. That's what lets CI run on every push for free. The mock exists only for this; the app itself always
 uses Claude.
 
-## 5. Scale check (no API key, no cost)
+## 5. Load benchmark (no API key, no cost)
+
+```bash
+python bench.py                               # 200 concurrent requests, rows 2-5, cache off vs on
+```
+
+It uses the test mock with 400 ms per simulated LLM call. Last run: with the cache on, 80% of requests were cache
+hits, average LLM calls per request fell from 5.6 to 2.4, median latency from 1.7 s to 1.0 s, and throughput rose
+from 79 to 113 requests per second.
+
+## 6. Scale check (no API key, no cost)
 
 ```bash
 python scripts/scale_check.py                 # 1,000,000 transactions across 10,000 customers
@@ -130,6 +140,12 @@ All settings are environment variables (or lines in `.env`). `.env.example` list
 | `DATA_DIR` | `./data` | folder the agents' data is read from |
 | `TODAY` | `2026-11-27` | pinned "today", so "this month" is stable |
 | `AUDIT_PATH` | `audit.jsonl` | audit log file |
+| `CACHE_ENABLED` | `true` | plan cache on or off |
+| `CACHE_PATH` | `.cache/plans.json` | where saved plans are kept; empty keeps them in memory only |
+| `CACHE_TTL_S` | `86400` | how long a plan stays usable |
+| `CACHE_SIMILARITY` | `0.80` | how similar a question must be to reuse a plan |
+| `CACHE_MAX_NEGATIVE` | `2` | "more details" requests after which a plan is no longer used |
+| `MOCK_LLM_LATENCY_MS` | `0` | simulated latency per call for the test mock (`bench.py` sets 400) |
 
 ## Make targets
 
@@ -146,6 +162,7 @@ All settings are environment variables (or lines in `.env`). `.env.example` list
 | `make frontend-test` | runs the React app's tests |
 | `make live-check` | asks the interview questions on real Claude and checks the answers (costs a few cents) |
 | `make scale-check` | times the tools on a million generated transactions (free) |
+| `make bench` | 200 concurrent requests with the cache off and on (free) |
 
 ## Continuous integration
 

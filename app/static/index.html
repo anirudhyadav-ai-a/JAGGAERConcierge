@@ -96,6 +96,12 @@
   .md table { border-collapse: collapse; margin: 4px 0 12px; font-size: 14px; display: block; overflow-x: auto; max-width: 100%; }
   .md th, .md td { border: 1px solid var(--rule); padding: 5px 10px; text-align: left; }
   .md th { background: var(--paper); font-weight: 600; }
+  .path { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px; margin-bottom: 8px;
+          border: 1px solid var(--rule); color: var(--muted); }
+  .path.cache { background: var(--after-tint); color: var(--after); border-color: #B7DCD6; }
+  .cache-note { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+  .cache-note.hit { background: var(--after-tint); color: var(--ink); border-radius: var(--radius-sm); padding: 8px 12px; }
+  .cache-note.hit b { color: var(--after); }
   .md code { font-size: 13px; background: var(--paper); padding: 1px 4px; border-radius: 4px; }
   .facts { display: grid; grid-template-columns: repeat(5, auto); justify-content: start; column-gap: 22px; row-gap: 2px; margin: 12px 0 0; font-size: 12.5px; }
   .facts dt { color: var(--muted); }
@@ -219,6 +225,26 @@ function facts(ctx, agentLabel) {
     <dt>Time</dt><dd>${((ctx.latency_ms ?? 0) / 1000).toFixed(1)} s</dd></dl>`;
 }
 
+function pathPill(r) {
+  if (r.path === "cache") return '<span class="path cache">From cache</span>';
+  if (r.context.detail) return '<span class="path">Detailed answer</span>';
+  return '<span class="path">Full flow</span>';
+}
+
+function cacheNote(r) {
+  const c = r.context.cache, s = (ms) => ((ms ?? 0) / 1000).toFixed(1) + " s", d = (n) => "$" + (n ?? 0).toFixed(4);
+  if (!c) return "";
+  if (c.hit && c.first_run) {
+    const f = c.first_run;
+    return `<div class="cache-note hit"><strong>Reused a saved plan</strong> (similarity ${(c.similarity ?? 0).toFixed(2)}): `
+      + `LLM calls <b>${r.context.llm_calls}</b> instead of ${f.llm_calls} · time <b>${s(r.context.latency_ms)}</b> instead of `
+      + `${s(f.latency_ms)} · cost <b>${d(r.context.cost_usd)}</b> instead of ${d(f.cost_usd)}</div>`;
+  }
+  if (c.saved) return '<p class="cache-note">Plan saved. Ask this again, or a similar question, to see it answered from cache.</p>';
+  const why = c.reason && c.reason !== "no plan for this set of agents" ? c.reason : c.save_note;
+  return why ? `<p class="cache-note">Not from cache: ${esc(why)}.</p>` : "";
+}
+
 function badge(status) {
   const [label, cls] = STATUS[status] || [status, "error"];
   return `<span class="status ${cls}">${esc(label)}</span>`;
@@ -230,7 +256,7 @@ function startTurn(threadId, q) {
   const el = document.createElement("article");
   el.className = "turn";
   el.innerHTML = `<p class="q">${esc(q)}</p><p class="working">Working…</p>`;
-  thread.prepend(el);
+  thread.append(el);   // oldest first: a question asked again shows below its first answer
   return el;
 }
 
@@ -266,8 +292,8 @@ async function askAfter(q, customer) {
   try {
     const r = await post("/v1/chat", { customer_id: customer, message: q, session_id: sessions.after });
     sessions.after = r.session_id;
-    turn.innerHTML = `<p class="q">${esc(q)}</p>${badge(r.status)}<div class="a md">${md(r.response)}</div>
-      ${facts(r.context, "Agents it picked")}<p class="trace">Audit trail: <a href="/v1/audit/${esc(r.trace_id)}" target="_blank" rel="noopener">${esc(r.trace_id)}</a></p>`;
+    turn.innerHTML = `<p class="q">${esc(q)}</p>${badge(r.status)} ${pathPill(r)}<div class="a md">${md(r.response)}</div>
+      ${facts(r.context, "Agents it picked")}${cacheNote(r)}<p class="trace">Audit trail: <a href="/v1/audit/${esc(r.trace_id)}" target="_blank" rel="noopener">${esc(r.trace_id)}</a></p>`;
     if (r.context.budget_remaining_usd !== undefined) $("budget").textContent = "$" + r.context.budget_remaining_usd.toFixed(2);
     return r;
   } catch (e) {

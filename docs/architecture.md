@@ -22,6 +22,10 @@ POST /v1/chat  (or /v1/chat/manual with agent_ids)
   │    rule-based gate → orchestrate | clarify | out_of_scope
   │    clarify and out_of_scope answer straight away; no agent runs
   │
+  ├─ Plan cache              app/cache/                           0 LLM calls
+  │    same agents + every slot present + similar question → hit: the fast path runs the plan's tools
+  │    live and one collate call writes the answer (2 LLM calls in total); miss → full graph below
+  │
   ├─ Orchestration graph     app/orchestrator/
   │    Orchestrator   builds the task graph from accepted intents; on loop-back schedules retries
   │                   and skips tasks whose upstream failed
@@ -86,6 +90,55 @@ MeteredLLM  ── counts calls per request, enforces the call cap, reserves and
 Thinking blocks are kept exactly as received and sent back unchanged in tool loops. Spend protection is described
 in [cost.md](cost.md).
 
+## Plan cache
+
+The cache stores **plans, never answers**: which agent runs which tool, with which arguments, in which stage.
+Tools always run live for the current customer, so data is fresh and nothing leaks between customers.
+
+```
+"What is the late payment fee, and how much did I spend on dining this month?"     (full run, 6 calls)
+   → saved plan  agents [A13, A14], slots [category]
+                 stage 0: A13.search_policies(query={sub_query})
+                 stage 0: A14.spending_summary(query={sub_query}, category={category})
+
+"How much did I spend on travel this month, and what's the late fee?"              (cache hit, 2 calls)
+   → same agents, has a {category} (travel), similarity 0.86 ≥ 0.80
+   → runs both tools live with category=travel, then one collate call
+```
+
+**Lookup** (after the score gate, automatic mode only). A plan is used when all of these hold:
+
+- the router chose the same set of agents;
+- every slot the plan needs is in the question (`category`, `merchant`, `transaction_id`, `days`, `amount`,
+  found by rules in `app/cache/entities.py`); a missing slot is a miss, never a guess;
+- the slot-masked questions are at least `CACHE_SIMILARITY` (0.80) similar;
+- the plan is younger than `CACHE_TTL_S`, was built against the current tool schemas (a catalog hash), and has
+  fewer than `CACHE_MAX_NEGATIVE` "more details" requests against it.
+
+**Fast path** (`app/cache/fast_path.py`). Fills the slots, runs the tools stage by stage through each agent's own
+data view, then makes one collate call that also gets each agent's instructions. It skips the orchestrator, the
+executor and every agent's LLM loop. If any tool fails, the same request falls back to the full graph.
+
+**Writing.** After a full run that ends `ok`, the plan is built from the tools that actually ran. A `query`
+argument becomes `{sub_query}`; a value found in the question becomes its slot; settings a tool marks as
+`replay_args` (`top_k`, `top_n`) stay as they are. Any other value, such as a transaction id read from an earlier
+tool's output, would tie the plan to one customer's data, so that run isn't cached. The run's LLM calls, time and
+cost are stored with the plan, so a later hit can show the comparison.
+
+**More details.** `more_details: true`, or a short follow-up such as "more details please", re-runs the previous
+question through the full graph and asks the collator for a fuller, itemised answer. If the previous answer came
+from the cache, that plan's negative count goes up and the full run's plan replaces it. A longer message that
+mentions detail is a new question and skips the cache.
+
+**Similarity.** `HashingEmbedder` (word stems weighted double, plus character trigrams, 1,024 dimensions) runs on
+the slot-masked question, so "spend on dining" and "spent on travel" compare as the same. Rewordings of the same
+question score about 0.86; questions that need a different plan, such as a dispute lookup vs pending charges at
+the same merchant, score about 0.66. A sentence-embedding model can replace it behind the `Embedder` interface.
+
+**Storage.** `PlanStore` has an in-memory implementation and a JSON file implementation (`CACHE_PATH`, default
+`.cache/plans.json`), so plans survive restarts. Redis with a vector index is the production implementation.
+`GET /v1/cache` lists the plans; `DELETE /v1/cache` clears them. Manual mode never reads or writes the cache.
+
 ## LLM calls per request
 
 | Question shape | Calls | Example |
@@ -94,6 +147,7 @@ in [cost.md](cost.md).
 | One agent, two tools | 3–4 (router 1 + agent 2–3) | "…$89.99 Online Store 24 charge, and where is the dispute?" |
 | Two agents, one tool each | 6 (router 1 + 2 + 2 + collate 1) | "What is the late payment fee, and how much did I spend on dining?" |
 | One agent depends on another | 6, in two waves | "How much did I spend and which credit card suits my spending?" |
+| Any plan-cache hit | 2 (router 1 + collate 1) | the late-fee question asked again, or about travel |
 
 A single-agent answer skips the collator. On Claude, an agent can call both of its tools in one step (as A12 does
 for the dispute question), which saves a call. The cap is `MAX_LLM_CALLS_PER_REQUEST` (default 12).
@@ -112,6 +166,7 @@ app/
   agents/            base Agent, registry, one module per agent
   tools/             Tool contract, ToolContext, @tool decorator
   data/              repositories over data/ and per-agent SourceViews
+  cache/             plan cache: entities.py (slots), embedder.py, plan_cache.py (store + rules), fast_path.py
   llm/               mock, Anthropic provider, MeteredLLM, BudgetGuard
   audit/             JSONL audit logger with redaction
   static/index.html  original single-file comparison page (served at /); the built React app is served at /app/
@@ -143,6 +198,7 @@ Every piece of state sits behind a small interface, so production means swapping
 | `data/` files via repository classes | systems of record, one repository class per source |
 | keyword search over policy paragraphs | embeddings + a vector store (e.g. pgvector) |
 | in-memory sessions | Redis |
+| plan cache in a JSON file | Redis with a vector index |
 | JSONL audit file | OpenTelemetry traces + append-only audit store |
 | `customer_id` in the request body | taken from the auth token |
 | in-process agents | one MCP server per agent domain, scaled independently |

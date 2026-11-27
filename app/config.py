@@ -53,6 +53,14 @@ class Settings:
     data_dir: str = os.getenv("DATA_DIR", str(Path(__file__).resolve().parent.parent / "data"))
     today: date = date.fromisoformat(os.getenv("TODAY", "2026-11-27"))
 
+    # Plan cache: reuse which-agent-runs-which-tool for similar questions (tools still run live)
+    cache_enabled: bool = os.getenv("CACHE_ENABLED", "true").lower() not in ("0", "false", "no")
+    cache_path: str = os.getenv("CACHE_PATH", ".cache/plans.json")      # empty: in memory only
+    cache_ttl_s: float = float(os.getenv("CACHE_TTL_S", "86400"))
+    cache_similarity: float = float(os.getenv("CACHE_SIMILARITY", "0.80"))
+    cache_max_negative: int = int(os.getenv("CACHE_MAX_NEGATIVE", "2"))
+    mock_llm_latency_ms: int = int(os.getenv("MOCK_LLM_LATENCY_MS", "0"))   # bench.py: simulate model latency
+
     # Audit / Log
     audit_path: str = os.getenv("AUDIT_PATH", "audit.jsonl")
 

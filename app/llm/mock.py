@@ -9,6 +9,7 @@ It mimics what Claude does at each step, using simple rules:
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import uuid
@@ -37,10 +38,15 @@ def _tid() -> str:
 class MockLLM:
     name = "mock"
 
+    def __init__(self, latency_ms: int = 0):
+        self.latency_ms = latency_ms     # bench.py: simulate model latency so cache and parallel waves show up
+
     def model_for(self, purpose: str) -> str:
         return "mock"
 
     async def complete(self, system, messages, tools=None, purpose="", tool_choice=None):
+        if self.latency_ms:
+            await asyncio.sleep(self.latency_ms / 1000)
         if purpose == "intent":
             return self._intent(system, messages)
         if purpose == "collate":

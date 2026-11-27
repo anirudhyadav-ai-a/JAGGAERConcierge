@@ -17,7 +17,9 @@ cp .env.example .env                  # then paste the key after ANTHROPIC_API_K
 make dev                              # open http://localhost:5173
 ```
 
-Then try the four example chips on the page, ticking the agents each question needs on the left. To check the
+Then try the four example chips on the page, ticking the agents each question needs on the left. Ask one of them
+a second time (or ask about travel instead of dining) to see the **plan cache**: the repeat answer appears below the
+first, labeled "From cache", with its LLM calls, time and cost next to the first run's. To check the
 interview answers automatically, run `make live-check` (about $0.04). Each question on the page costs about
 $0.01–0.05; see [docs/cost.md](docs/cost.md). The test suite (`make test`) needs no key and costs nothing.
 
@@ -82,6 +84,7 @@ facts the spec requires. Last run (November 2026):
 | $89.99 Online Store 24 charge and its dispute | T9004, $89.99, dispute D-55120 under review, provisional credit issued | 3 | $0.007 |
 | Late payment fee + dining spend | $35 [POL-LATE-03] and $188.70, agents in parallel | 6 | $0.011 |
 | Spend this month + best card | $1,525.84 by category, then Flat 2% Cash Back Card (~$366.20/yr), A14 before A11 | 6 | $0.019 |
+| Late fee + dining spend, reworded | **from the plan cache**: same facts, same tools run live | 2 | $0.0035 |
 
 Wording changes from run to run; the facts, agents and tools don't.
 
@@ -118,7 +121,8 @@ Each result prints the route, agents, tools, number of LLM calls, cost and the a
 Client + session
   -> Intent pre-processing   (LLM: route_intents tool -> agents, sub-queries, dependencies, ambiguity)
   -> Intent score            (rules: accept / clarify / out of scope; clarify answers without running agents)
-  -> Orchestration graph
+  -> Plan cache              (same agents + slots + similar question: run the saved plan's tools live, 2 calls)
+  -> Orchestration graph     (on a cache miss; its plan is saved afterwards)
        Orchestrator          (task DAG from intents; on loop-back: retries, skips blocked tasks)
        Executor              (runs ready tasks in parallel waves, timeout per agent)
        Agents A11-A14        (LLM tool loop over their OWN tools only)
@@ -163,7 +167,9 @@ curl -s localhost:8000/v1/chat -H 'content-type: application/json' \
   -d '{"customer_id":"C1001","message":"What about my card?"}'
 ```
 
-`POST /v1/chat` · `POST /v1/chat/manual` (before mode: same pipeline, user-chosen `agent_ids`) · `GET /v1/audit/{trace_id}` · `GET /v1/sessions/{id}` · `GET /v1/agents` · `GET /v1/usage` · `GET /health`
+`POST /v1/chat` · `POST /v1/chat/manual` (before mode: same pipeline, user-chosen `agent_ids`) · `GET /v1/audit/{trace_id}` · `GET /v1/sessions/{id}` · `GET /v1/agents` · `GET /v1/usage` · `GET /v1/cache` · `DELETE /v1/cache` · `GET /health`
+
+Send `"more_details": true` (or a short follow-up like "more details please") to re-run the previous question in full.
 
 In the demo, `customer_id` comes in the request body. In production it comes from the auth token.
 
@@ -215,6 +221,7 @@ If it needs a new data file, add it under `data/` and register its repository in
 | `data/` files via `app/data/repositories.py` | systems of record (one repository class per source) |
 | keyword policy search | vector store |
 | in-memory sessions | Redis |
+| plan cache in a JSON file | Redis with a vector index (same `PlanStore` interface) |
 | JSONL audit | log pipeline / SIEM |
 | `customer_id` in body | auth claims |
 | in-process agents | one MCP server per agent domain |

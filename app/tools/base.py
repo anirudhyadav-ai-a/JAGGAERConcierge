@@ -66,9 +66,13 @@ class Tool:
         return ToolInvocation(self.name, dict(args or {}), ok, out, int((time.perf_counter() - start) * 1000))
 
 
-def tool(name: str, description: str, properties: dict | None = None, required: list[str] | None = None):
-    """Decorator: @tool("search_transactions", "…", {"query": {"type": "string"}})"""
+def tool(name: str, description: str, properties: dict | None = None, required: list[str] | None = None,
+         replay_args: tuple[str, ...] = ()):
+    """Decorator: @tool("search_transactions", "…", {"query": {"type": "string"}})
+
+    replay_args: arguments a cached plan may reuse as they are (settings like top_k, never customer data)."""
     def wrap(fn):
         return Tool(name, description,
-                    {"type": "object", "properties": properties or {}, "required": required or []}, fn)
+                    {"type": "object", "properties": properties or {}, "required": required or []}, fn,
+                    replay_args=tuple(replay_args))
     return wrap

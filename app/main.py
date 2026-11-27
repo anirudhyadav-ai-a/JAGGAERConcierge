@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import time
 from dataclasses import asdict
 from pathlib import Path
 
@@ -26,6 +25,7 @@ class ChatRequest(BaseModel):
     customer_id: str = Field(..., examples=["C1001"])   # in production: from the auth token, not the body
     message: str = Field(..., min_length=1, max_length=4000)
     session_id: str | None = None
+    more_details: bool = False   # re-run the previous question in this session through the full flow, in detail
 
 
 class ManualChatRequest(ChatRequest):
@@ -60,24 +60,21 @@ async def ui():
 @app.post("/v1/chat")
 async def chat(req: ChatRequest):
     """After: the platform routes the question to the right agents automatically."""
-    start = time.perf_counter()
     try:
-        out = asdict(await platform.handle(req.message, req.customer_id, req.session_id))
+        out = asdict(await platform.handle(req.message, req.customer_id, req.session_id,
+                                           more_details=req.more_details))
     except PermissionError as exc:
         raise HTTPException(403, str(exc))
-    out["context"]["latency_ms"] = int((time.perf_counter() - start) * 1000)
     return out
 
 
 @app.post("/v1/chat/manual")
 async def chat_manual(req: ManualChatRequest):
     """Before: the user picks agents; each picked agent answers the whole question separately."""
-    start = time.perf_counter()
     try:
         out = asdict(await platform.handle_manual(req.message, req.customer_id, req.agent_ids, req.session_id))
     except PermissionError as exc:
         raise HTTPException(403, str(exc))
-    out["context"]["latency_ms"] = int((time.perf_counter() - start) * 1000)
     return out
 
 
@@ -100,6 +97,23 @@ async def get_audit(trace_id: str):
 @app.get("/v1/agents")
 async def list_agents():
     return platform.registry.describe()
+
+
+@app.get("/v1/cache")
+async def list_cache():
+    """The stored question-to-tool plans: which agent runs which tool with which slots. Never answers."""
+    c = platform.plan_cache
+    plans = sorted((e.summary() for e in c.store.all()), key=lambda e: e["created_at"], reverse=True)
+    return {"enabled": platform.cfg.cache_enabled, "path": platform.cfg.cache_path or None,
+            "similarity": c.similarity, "ttl_s": c.ttl_s, "max_negative": c.max_negative,
+            "catalog_version": c.version, "count": len(plans), "plans": plans}
+
+
+@app.delete("/v1/cache")
+async def clear_cache():
+    n = len(platform.plan_cache.store.all())
+    platform.plan_cache.store.clear()
+    return {"cleared": n}
 
 
 @app.get("/v1/usage")
