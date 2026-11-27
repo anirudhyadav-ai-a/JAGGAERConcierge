@@ -1,0 +1,4 @@
+[
+  {"customer_id": "C1001", "name": "Demo Customer", "segment": "mass_affluent", "credit_score_band": "good", "annual_income_band": "100k-150k", "existing_cards": ["CARD_CASHBACK_BASIC"], "monthly_budget": {"dining": 300, "groceries": 600, "travel": 400, "shopping": 350}},
+  {"customer_id": "C2002", "name": "Second Customer", "segment": "mass", "credit_score_band": "fair", "annual_income_band": "50k-100k", "existing_cards": [], "monthly_budget": {"dining": 150, "groceries": 400, "travel": 100, "shopping": 200}}
+]

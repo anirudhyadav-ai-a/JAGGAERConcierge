@@ -1,0 +1,5 @@
+[
+  {"id": "CARD_TRAVEL_PLUS", "name": "Travel Plus Card", "annual_fee": 95, "min_score_band": "good", "rewards": {"travel": 3.0, "dining": 2.0, "default": 1.0}, "intro": "60k bonus points"},
+  {"id": "CARD_DINING_REWARDS", "name": "Dining Rewards Card", "annual_fee": 0, "min_score_band": "fair", "rewards": {"dining": 3.0, "groceries": 2.0, "default": 1.0}, "intro": "$200 after $500 spend"},
+  {"id": "CARD_CASHBACK_FLAT", "name": "Flat 2% Cash Back Card", "annual_fee": 0, "min_score_band": "good", "rewards": {"default": 2.0}, "intro": "0% APR 15 months"}
+]

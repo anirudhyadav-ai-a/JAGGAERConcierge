@@ -1,0 +1,12 @@
+id,customer_id,date,merchant,category,amount,status
+T9001,C1001,2026-11-26,Blue Bottle Cafe,dining,18.40,posted
+T9002,C1001,2026-11-25,FreshMart,groceries,142.75,posted
+T9003,C1001,2026-11-24,SkyHigh Airlines,travel,612.00,posted
+T9004,C1001,2026-11-22,Online Store 24,shopping,89.99,disputed
+T9005,C1001,2026-11-21,Trattoria Roma,dining,96.20,posted
+T9006,C1001,2026-11-18,FreshMart,groceries,118.30,posted
+T9007,C1001,2026-11-15,CityRide,travel,32.50,posted
+T9008,C1001,2026-11-13,Sushi Bar,dining,74.10,pending
+T9009,C1001,2026-11-07,HomeGoods,shopping,210.00,posted
+T9010,C1001,2026-11-02,FreshMart,groceries,131.60,posted
+T9101,C2002,2026-11-20,Book Nook,shopping,45.00,posted
