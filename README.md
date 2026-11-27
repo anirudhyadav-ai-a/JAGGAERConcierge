@@ -17,7 +17,7 @@ cp .env.example .env                  # then paste the key after ANTHROPIC_API_K
 make dev                              # open http://localhost:5173
 ```
 
-Then try the four example chips on the page, ticking the agents each question needs on the left. Ask one of them
+Then try the four example chips on the page (more in [docs/sample-questions.md](docs/sample-questions.md)), ticking the agents each question needs on the left. Ask one of them
 a second time (or ask about travel instead of dining) to see the **plan cache**: the repeat answer appears below the
 first, labeled "From cache", with its LLM calls, time and cost next to the first run's. To check the
 interview answers automatically, run `make live-check` (about $0.04). Each question on the page costs about
@@ -27,10 +27,11 @@ $0.01–0.05; see [docs/cost.md](docs/cost.md). The test suite (`make test`) nee
 
 | Doc | Covers |
 | --- | --- |
-| [docs/architecture.md](docs/architecture.md) | request flow, agents, tools and data sources, LLM layer, code map |
+| [docs/architecture.md](docs/architecture.md) | architecture diagram, request flow, plan cache, agents, tools and data, LLM layer, code map |
 | [docs/running.md](docs/running.md) | install, add your key, run it (React or plain page), tests, scale check, settings |
 | [docs/usage.md](docs/usage.md) | the comparison page, questions to try, the HTTP API and its responses |
 | [docs/cost.md](docs/cost.md) | prices, what a question costs, the two spend limits, checking and reducing spend |
+| [docs/sample-questions.md](docs/sample-questions.md) | questions to try: one agent, two agents, cache re-runs, no cache entry |
 | [SPEC.md](SPEC.md) | the build spec: goals, design rules, acceptance tests, build order, definition of done |
 
 ## Quickstart
@@ -116,6 +117,10 @@ See [docs/cost.md](docs/cost.md).
 Each result prints the route, agents, tools, number of LLM calls, cost and the audit trace id.
 
 ## Architecture
+
+![Architecture diagram](docs/architecture.png)
+
+The same diagram as Mermaid, with every step explained: [docs/architecture.md](docs/architecture.md).
 
 ```
 Client + session
