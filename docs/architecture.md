@@ -133,6 +133,8 @@ automatic routing.
 | A13 | Policy knowledge base | `search_policies` (cites `[POL-…]`) | `policies/*.md` |
 | A14 | Personal finance | `spending_summary`, `budget_status` | `transactions.csv`, `customers.json` |
 
+Each tool's inputs, outputs and behaviour are listed in [agents-and-tools.md](agents-and-tools.md).
+
 Isolation is enforced in three places:
 
 - **Tools:** an agent can only call the tools in its own list. A call to any other tool name returns an error to

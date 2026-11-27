@@ -31,6 +31,7 @@ $0.01–0.05; see [docs/cost.md](docs/cost.md). The test suite (`make test`) nee
 | [docs/running.md](docs/running.md) | install, add your key, run it (React or plain page), tests, scale check, settings |
 | [docs/usage.md](docs/usage.md) | the comparison page, questions to try, the HTTP API and its responses |
 | [docs/cost.md](docs/cost.md) | prices, what a question costs, the two spend limits, checking and reducing spend |
+| [docs/agents-and-tools.md](docs/agents-and-tools.md) | every agent's tools: what each does, inputs, outputs, data it reads |
 | [docs/sample-questions.md](docs/sample-questions.md) | questions to try: one agent, two agents, cache re-runs, no cache entry |
 | [SPEC.md](SPEC.md) | the build spec: goals, design rules, acceptance tests, build order, definition of done |
 
