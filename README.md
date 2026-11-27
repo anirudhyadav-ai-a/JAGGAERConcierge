@@ -4,6 +4,23 @@ A multi-agent RAG platform for a banking assistant. A customer asks one question
 which domain agents are needed, each agent uses only its own tools, and the customer gets one answer.
 LLMs read the question and write the answers. Routing, planning, execution order and retries are plain code.
 
+## For reviewers
+
+Everything runs on real Claude, so you need an API key. **Ask the author for the review key**; it's shared
+privately, never committed. It works for 7 days and sits in a Claude Console workspace with a spend limit.
+
+```bash
+git clone https://github.com/anirudhyadav-ai-a/JAGGAERConcierge.git && cd JAGGAERConcierge
+python3 -m venv .venv && source .venv/bin/activate
+make install frontend-install         # Python packages + React packages (needs Node.js 20+)
+cp .env.example .env                  # then paste the key after ANTHROPIC_API_KEY=
+make dev                              # open http://localhost:5173
+```
+
+Then try the four example chips on the page, ticking the agents each question needs on the left. To check the
+interview answers automatically, run `make live-check` (about $0.04). Each question on the page costs about
+$0.01–0.05; see [docs/cost.md](docs/cost.md). The test suite (`make test`) needs no key and costs nothing.
+
 ## Documentation
 
 | Doc | Covers |
@@ -14,7 +31,7 @@ LLMs read the question and write the answers. Routing, planning, execution order
 | [docs/cost.md](docs/cost.md) | prices, what a question costs, the two spend limits, checking and reducing spend |
 | [SPEC.md](SPEC.md) | the build spec: goals, design rules, acceptance tests, build order, definition of done |
 
-## Quickstart (no API key needed)
+## Quickstart
 
 ```bash
 git clone <this repo> && cd JAGGAERConcierge
