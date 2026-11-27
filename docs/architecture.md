@@ -6,6 +6,80 @@ tools and data, and the customer gets one answer.
 The core rule: **LLMs understand and write; code decides.** Routing, the order agents run in, retries, timeouts and
 spend limits are plain Python. An LLM only reads the question, picks tools inside an agent, and writes the answer.
 
+## Diagram
+
+```mermaid
+flowchart TD
+    UI["<b>Comparison page</b> · React :5173 or original page /<br/>Before: user ticks agents → POST /v1/chat/manual<br/>After: platform picks → POST /v1/chat"]
+
+    UI --> API["<b>Client + session</b><br/>session history · customer ownership check · per-request call cap"]
+    API --> MD["<b>More details?</b> flag or short follow-up<br/>yes → re-run previous question in detail, skip cache"]
+    MD --> IP["<b>Intent pre-processing</b> · Haiku 5.5 · 1 call<br/>redact PII · route_intents tool<br/>one intent per agent: sub-query, confidence, depends_on"]
+    IP --> GATE["<b>Score gate</b> · rules · 0 calls<br/>manual mode: ticked agents accepted"]
+    GATE -->|"ambiguous / low score"| CLAR["Clarifying question<br/>no agent runs"]
+    GATE -->|"nothing matched"| OOS["Out of scope<br/>what it can help with"]
+    GATE -->|orchestrate| LOOKUP
+
+    subgraph CACHE["Plan cache · automatic mode only"]
+        LOOKUP["<b>Lookup</b> · 0 calls<br/>same agents · every slot present<br/>similarity ≥ 0.80 · fresh · same tools"]
+        FAST["<b>Fast path</b><br/>fill slots · run the plan's tools live,<br/>stage by stage, through each agent's data view"]
+        FCOL["<b>Collate</b> · Sonnet 5.5 · 1 call"]
+        STORE[("<b>Plan store</b> · .cache/plans.json<br/>agents · tools · slots · stages<br/>never answers")]
+        STORE -.-> LOOKUP
+        LOOKUP -->|hit| FAST --> FCOL
+    end
+
+    subgraph GRAPH["Orchestration graph · on a cache miss"]
+        ORCH["<b>Orchestrator</b><br/>task graph from intents<br/>retries · skips blocked tasks"]
+        EXEC["<b>Executor</b><br/>ready tasks in parallel waves<br/>timeout per agent · upstream outputs"]
+        AGENTS["<b>Agents A11–A14</b> · Sonnet 5.5<br/>tool loop over their own tools only"]
+        COL["<b>Response collator</b><br/>loops back while tasks wait or can retry<br/>writes the answer · 1 call if 2+ agents"]
+        ORCH --> EXEC --> AGENTS --> COL
+        COL -.->|loop back| ORCH
+    end
+
+    LOOKUP -->|miss| ORCH
+    FAST -.->|"a tool failed: fall back"| ORCH
+    COL -->|"ok: save plan,<br/>slots not values"| STORE
+
+    subgraph DATA["Data · each agent reads only its declared sources"]
+        direction LR
+        D11["<b>A11 Cards</b><br/>customers · card_products<br/>· transactions"]
+        D12["<b>A12 Transactions</b><br/>transactions · disputes"]
+        D13["<b>A13 Policies</b><br/>policies/*.md, cited"]
+        D14["<b>A14 Personal finance</b><br/>transactions · customers"]
+    end
+    AGENTS --> DATA
+    FAST --> DATA
+
+    FCOL --> RESP
+    COL --> RESP
+    CLAR --> RESP
+    OOS --> RESP
+    RESP["<b>Final response</b> → page<br/>status · path: cache / full / manual / intent<br/>agents · tools · LLM calls · cost · time"]
+
+    subgraph XC["Across every step"]
+        direction LR
+        LLM["<b>MeteredLLM + BudgetGuard</b><br/>reserves worst-case cost · $5 cap · ledger → Claude API"]
+        AUDIT["<b>Audit log</b><br/>one trace_id per request · PII redacted"]
+    end
+    RESP ~~~ XC
+
+    classDef llm fill:#E3F1EF,stroke:#0E6E66,color:#1B2530
+    classDef cache fill:#EEF0FB,stroke:#3A3F8F,color:#1B2530
+    classDef rule fill:#FFFFFF,stroke:#5E6B78,color:#1B2530
+    classDef data fill:#F7EEE3,stroke:#A8641A,color:#1B2530
+    classDef out fill:#F2F4F6,stroke:#5E6B78,color:#1B2530
+    class IP,AGENTS,COL,FCOL llm
+    class LOOKUP,FAST,STORE cache
+    class API,MD,GATE,ORCH,EXEC,UI,LLM,AUDIT rule
+    class D11,D12,D13,D14 data
+    class CLAR,OOS,RESP out
+```
+
+Source: [architecture.mmd](architecture.mmd). Rendered copy for slides: [architecture.png](architecture.png).
+Green boxes are LLM calls, blue is the plan cache, sand is data, and white is plain code.
+
 ## Request flow
 
 ```
