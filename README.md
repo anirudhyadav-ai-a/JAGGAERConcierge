@@ -12,6 +12,7 @@ LLMs read the question and write the answers. Routing, planning, execution order
 | [docs/running.md](docs/running.md) | install, run offline or on Claude, every setting, troubleshooting |
 | [docs/usage.md](docs/usage.md) | the comparison page, questions to try, the HTTP API and its responses |
 | [docs/cost.md](docs/cost.md) | prices, what a question costs, the two spend limits, checking and reducing spend |
+| [SPEC.md](SPEC.md) | the build spec: goals, design rules, acceptance tests, build order, definition of done |
 
 ## Quickstart (no API key needed)
 
