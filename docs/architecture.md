@@ -113,8 +113,12 @@ app/
   data/              repositories over data/ and per-agent SourceViews
   llm/               mock, Anthropic provider, MeteredLLM, BudgetGuard
   audit/             JSONL audit logger with redaction
-  static/index.html  before/after comparison page
+  static/index.html  original single-file comparison page (served at /); the built React app is served at /app/
 data/                the demo's data files
+frontend/            React app (Vite + TypeScript): the same comparison page as components
+  src/api.ts         typed calls to the backend
+  src/compare.ts     the before/after comparison rules
+  src/components/    Header, AskBar, ComparisonStrip, AgentPicker, Turn
 tests/               offline test suite, including a fake Anthropic client
 ```
 

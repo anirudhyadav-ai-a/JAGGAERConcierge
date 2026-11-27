@@ -5,7 +5,12 @@ Start the server with `make serve` (see [running.md](running.md)).
 
 ## The comparison page
 
-Open http://localhost:8000. One question goes to two sides at once:
+There are two versions of the page and they behave the same:
+
+- **React app:** http://localhost:5173 with `make dev`, or http://localhost:8000/app/ after `make frontend-build`
+- **Original single-file page:** http://localhost:8000
+
+One question goes to two sides at once:
 
 - **Before: "You choose the agents".** Tick the agents (A11–A14) you think the question needs. Each box shows
   the agent's name and tools.

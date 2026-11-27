@@ -7,7 +7,8 @@ from dataclasses import asdict
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .platform import AgentPlatform
@@ -29,6 +30,22 @@ class ManualChatRequest(ChatRequest):
 
 
 UI_FILE = Path(__file__).parent / "static" / "index.html"
+FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
+
+
+def mount_frontend(target: FastAPI, dist: Path) -> bool:
+    """Serve the built React app at /app/ when frontend/dist exists; otherwise explain how to build it."""
+    if (dist / "index.html").exists():
+        target.mount("/app", StaticFiles(directory=dist, html=True), name="frontend")
+        return True
+
+    @target.get("/app", include_in_schema=False)
+    @target.get("/app/{rest:path}", include_in_schema=False)
+    async def frontend_not_built(rest: str = ""):
+        return JSONResponse(status_code=404, content={
+            "detail": "The React frontend isn't built. Run `make frontend-build` (or `npm run build` in frontend/), "
+                      "or use the dev server: `make dev`, then open http://localhost:5173."})
+    return False
 
 
 @app.get("/", include_in_schema=False)
@@ -98,3 +115,6 @@ async def health():
         out.update(models={"intent": cfg.intent_model, "agent": cfg.agent_model, "collate": cfg.collate_model},
                    budget_remaining_usd=round(platform.budget.remaining, 4))
     return out
+
+
+mount_frontend(app, FRONTEND_DIST)

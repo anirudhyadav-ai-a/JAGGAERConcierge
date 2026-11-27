@@ -29,6 +29,13 @@ python3 -m pytest -q                           # runs the full suite offline
 make serve                    # then open http://localhost:8000
 ```
 
+Or with the React frontend (needs Node.js 20+):
+
+```bash
+make frontend-install         # once
+make dev                      # backend :8000 + React :5173, then open http://localhost:5173
+```
+
 Ask one question and it goes to both sides. On the left (before) you tick the agents; on the right (after) the
 platform picks them. Everything after that choice is the same pipeline, so when you tick the agents the question
 really needs, both sides run the same agents and tools and give the same answer. A strip under the question
