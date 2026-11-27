@@ -22,7 +22,7 @@ def build_llm(cfg: Settings | None = None, client=None) -> MeteredLLM:
         budget = BudgetGuard(cfg.budget_usd, cfg.usage_ledger_path)
         return MeteredLLM(inner, budget, cfg.llm_max_tokens)
     from .mock import MockLLM
-    return MeteredLLM(MockLLM(), None, cfg.llm_max_tokens)
+    return MeteredLLM(MockLLM(cfg.mock_llm_latency_ms), None, cfg.llm_max_tokens)
 
 
 __all__ = ["LLM", "LLMRefusal", "LLMResponse", "ToolCall", "Usage", "BudgetExceeded", "BudgetGuard",

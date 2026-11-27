@@ -112,3 +112,15 @@
   .md th, .md td { border: 1px solid var(--rule); padding: 5px 10px; text-align: left; }
   .md th { background: var(--paper); font-weight: 600; }
   .md code { font-size: 13px; background: var(--paper); padding: 1px 4px; border-radius: 4px; }
+
+  /* Plan cache */
+  .pills { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .pills .status { margin-bottom: 0; }
+  .path { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--rule); color: var(--muted); }
+  .path.cache { background: var(--after-tint); color: var(--after); border-color: #B7DCD6; }
+  .path.detail { background: #EEF0FB; color: #3A3F8F; border-color: #CDD1F0; }
+  .cache-note { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+  .cache-note.hit { background: var(--after-tint); color: var(--ink); border-radius: var(--radius-sm); padding: 8px 12px; }
+  .cache-note.hit ul { margin: 4px 0 0; padding-left: 18px; }
+  .cache-note.hit b { color: var(--after); }
+  .ghost.inline { margin-left: 10px; font-size: 12.5px; padding: 0; }

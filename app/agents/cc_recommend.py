@@ -24,7 +24,8 @@ def get_customer_profile(ctx):
       "Rank eligible credit card products for this customer by estimated annual rewards, "
       "using their last 30 days of spending by category. Use for card recommendation questions.",
       {"query": {"type": "string", "description": "What the customer wants from a card"},
-       "top_n": {"type": "integer", "default": 2}})
+       "top_n": {"type": "integer", "default": 2}},
+      replay_args=("top_n",))
 def recommend_cards(ctx, query: str = "", top_n: int = 2):
     profile = ctx.data.customers.get(ctx.customer_id)
     if not profile:

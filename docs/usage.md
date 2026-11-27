@@ -25,6 +25,13 @@ Steps:
 3. On the left, tick the agents. If you ask with none ticked, nothing is sent; that is the step the platform removes.
 4. Press **Ask both** (Enter sends, Shift+Enter adds a line).
 
+Answers appear oldest first. Ask the same question again, or a similar one (say, travel instead of dining), and the
+platform side answers from its plan cache: the new answer appears below the first one, labeled **From cache**, with
+its LLM calls, time and cost next to those of the full run that saved the plan. On Claude that's typically 2 calls
+instead of 6, in about half the time and a third of the cost. **More details** under the latest answer re-runs it
+through the full flow for a fuller answer. The header shows how many plans are saved; **Clear** empties the cache so
+you can show a first run again. The "before" side never uses the cache.
+
 A strip under the question compares the two answers:
 
 | Strip says | Meaning |
@@ -127,6 +134,22 @@ Same response shape, with `path: "manual"`. An empty `agent_ids` returns status 
 | `intent` | answered at the routing step (clarify, out of scope, budget stop) |
 | `full` | ran the orchestration graph |
 | `manual` | ran the graph with user-chosen agents |
+| `cache` | answered from a saved plan: the plan's tools ran live, then one call wrote the answer |
+
+On the platform side, `context.cache` says what the cache did: on a hit, `plan_id`, `similarity` and `first_run`
+(the LLM calls, time and cost of the full run that built the plan); on a miss, `reason`, and whether this run's plan
+was `saved`.
+
+### Ask for more detail
+
+```bash
+curl -s localhost:8000/v1/chat -H 'content-type: application/json' -d '{
+  "customer_id": "C1001", "session_id": "sess_…", "message": "more details please"
+}'
+```
+
+A short follow-up like this (or `"more_details": true`) re-runs the session's previous question through the full
+flow with a fuller, itemised answer. `context.detail` is `true` and `context.answered_question` names the question.
 
 ### Other endpoints
 
@@ -136,6 +159,8 @@ Same response shape, with `path: "manual"`. An empty `agent_ids` returns status 
 | `GET /v1/sessions/{session_id}` | the conversation history |
 | `GET /v1/agents` | each agent's id, name, keywords, tools and data files |
 | `GET /v1/usage` | the spend ledger against the budget (Claude mode) |
+| `GET /v1/cache` | the saved question-to-tool plans: agents, slots, steps, hits, and the first run's calls, time and cost |
+| `DELETE /v1/cache` | clears the saved plans |
 | `GET /health` | provider, agent ids, and on Claude the models and budget left |
 
 In this demo `customer_id` comes in the request body. In production it must come from the caller's auth token.

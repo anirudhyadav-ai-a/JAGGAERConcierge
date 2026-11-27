@@ -16,6 +16,7 @@ export default function App() {
   const [loadError, setLoadError] = useState(false);
   const [agents, setAgents] = useState<AgentCard[]>([]);
   const [budget, setBudget] = useState<number | undefined>(undefined);
+  const [plans, setPlans] = useState<number | undefined>(undefined);
 
   const [customer, setCustomer] = useState(CUSTOMERS[0].id);
   const [question, setQuestion] = useState("");
@@ -42,6 +43,7 @@ export default function App() {
         setAgents(catalog);
         setBudget(h.budget_remaining_usd);
         setLoadError(false);
+        refreshPlans();
       } catch {
         if (cancelled) return;
         if (attemptsLeft > 0) setTimeout(() => load(attemptsLeft - 1), RETRY_MS);
@@ -53,6 +55,17 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  const refreshPlans = () =>
+    api
+      .cache()
+      .then((c) => setPlans(c.enabled ? c.count : undefined))
+      .catch(() => setPlans(undefined));
+
+  const clearPlans = async () => {
+    await api.clearCache().catch(() => undefined);
+    refreshPlans();
+  };
 
   const reset = () => {
     generation.current += 1;
@@ -70,23 +83,23 @@ export default function App() {
 
   const addTurn = (side: Side, q: string): number => {
     const id = nextId.current++;
-    setTurns((t) => ({ ...t, [side]: [{ id, question: q }, ...t[side]] }));
+    setTurns((t) => ({ ...t, [side]: [...t[side], { id, question: q }] })); // oldest first
     return id;
   };
 
   const settle = (side: Side, id: number, patch: Partial<TurnState>) =>
     setTurns((t) => ({ ...t, [side]: t[side].map((x) => (x.id === id ? { ...x, ...patch } : x)) }));
 
-  async function ask(side: Side, q: string, gen: number): Promise<ChatResponse | null> {
+  async function ask(side: Side, q: string, gen: number, moreDetails = false): Promise<ChatResponse | null> {
     // Send in catalog order so the request doesn't depend on the order boxes were ticked.
     const ids = agents.map((a) => a.id).filter((id) => selected.includes(id));
     if (side === "before" && ids.length === 0) {
       setPickerWarn(true);
       return null;
     }
-    const id = addTurn(side, q);
+    const id = addTurn(side, moreDetails ? "More details" : q);
     try {
-      const req = { customer_id: customer, message: q, session_id: sessions.current[side] };
+      const req = { customer_id: customer, message: q, session_id: sessions.current[side], more_details: moreDetails };
       const r = side === "before" ? await api.chatManual({ ...req, agent_ids: ids }) : await api.chat(req);
       if (gen !== generation.current) return null;
       sessions.current[side] = r.session_id;
@@ -109,6 +122,17 @@ export default function App() {
     if (gen !== generation.current) return;
     setPair(left && right ? { left, right } : null);
     setBusy(false);
+    refreshPlans();
+  };
+
+  // Platform side only: re-run the previous question through the full flow for a fuller answer.
+  const moreDetails = async () => {
+    const gen = generation.current;
+    setBusy(true);
+    await ask("after", "More details", gen, true);
+    if (gen !== generation.current) return;
+    setBusy(false);
+    refreshPlans();
   };
 
   const changeCustomer = (id: string) => {
@@ -122,6 +146,8 @@ export default function App() {
         health={health}
         loadError={loadError}
         budget={budget}
+        plans={plans}
+        onClearPlans={clearPlans}
         customer={customer}
         onCustomerChange={changeCustomer}
       />
@@ -151,7 +177,12 @@ export default function App() {
             </h2>
             <p>Nothing to tick. The platform picks the agents from the question.</p>
           </header>
-          <Thread turns={turns.after} emptyText="The combined answer appears here." agentLabel="Agents it picked" />
+          <Thread
+            turns={turns.after}
+            emptyText="The combined answer appears here."
+            agentLabel="Agents it picked"
+            onMoreDetails={busy ? undefined : moreDetails}
+          />
         </section>
       </main>
     </>

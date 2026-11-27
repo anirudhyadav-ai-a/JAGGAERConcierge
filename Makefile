@@ -1,4 +1,4 @@
-.PHONY: install test demo serve frontend-install frontend-dev frontend-build frontend-test dev live-check scale-check
+.PHONY: install test demo serve frontend-install frontend-dev frontend-build frontend-test dev live-check scale-check bench
 
 install:
 	python3 -m pip install -r requirements.txt
@@ -37,3 +37,7 @@ live-check:
 # Free: time the tools on a million generated transactions
 scale-check:
 	python3 scripts/scale_check.py
+
+# Free: 200 concurrent requests on the test mock, plan cache off vs on
+bench:
+	python3 bench.py

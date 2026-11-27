@@ -1,6 +1,8 @@
 import type { ChatResponse } from "../api";
 import { compare, listOrNone, usd } from "../compare";
 
+const secs = (ms: number | undefined) => `${((ms ?? 0) / 1000).toFixed(1)} s`;
+
 function Mark({ ok }: { ok: boolean }) {
   return ok ? <span className="ok">Same</span> : <span className="no">Different</span>;
 }
@@ -25,9 +27,10 @@ export function ComparisonStrip({ left, right }: { left: ChatResponse; right: Ch
               : `you ran ${listOrNone(c.leftTools)}; it ran ${listOrNone(c.rightTools)}`}
           </li>
           <li>
-            <b>Cost and calls</b>
-            you {usd(left.context.cost_usd)}, {left.context.llm_calls ?? 0} calls; platform{" "}
-            {usd(right.context.cost_usd)}, {right.context.llm_calls ?? 0} calls
+            <b>Cost, calls and time</b>
+            you {usd(left.context.cost_usd)}, {left.context.llm_calls ?? 0} calls, {secs(left.context.latency_ms)};
+            platform {usd(right.context.cost_usd)}, {right.context.llm_calls ?? 0} calls, {secs(right.context.latency_ms)}
+            {right.path === "cache" ? " (from cache)" : ""}
           </li>
         </ul>
       </div>
