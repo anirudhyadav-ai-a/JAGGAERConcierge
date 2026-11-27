@@ -179,7 +179,7 @@ async function init() {
   try {
     const [health, catalog] = await Promise.all([fetch("/health").then(r => r.json()), fetch("/v1/agents").then(r => r.json())]);
     agents = catalog;
-    $("provider").textContent = health.llm === "anthropic" ? "Claude" : "Offline mock (free)";
+    $("provider").textContent = health.llm === "anthropic" ? "Claude" : "Test mock (not Claude)";
     if (health.budget_remaining_usd !== undefined) { $("budgetWrap").hidden = false; $("budget").textContent = "$" + health.budget_remaining_usd.toFixed(2); }
   } catch (e) {
     $("provider").textContent = "server not reachable";

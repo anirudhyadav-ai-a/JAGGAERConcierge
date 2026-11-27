@@ -20,7 +20,7 @@ export function Header({ health, loadError, budget, customer, onCustomerChange }
       ? "connecting…"
       : health.llm === "anthropic"
         ? "Claude"
-        : "Offline mock (free)";
+        : "Test mock (not Claude)";
   return (
     <div className="top">
       <div>

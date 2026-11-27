@@ -3,10 +3,11 @@
 ## Requirements
 
 - Python 3.11, 3.12 or 3.13
-- Node.js 20 or later, only for the React frontend
-- No API key is needed to try it. Without one, it runs on a free offline mock LLM.
+- Node.js 20 or later, for the React frontend
+- A Claude API key. The app answers every question with real Claude calls: Haiku routes, Sonnet runs the agents
+  and writes the answer. Read [cost.md](cost.md) first; a full two-agent question costs about one to three cents.
 
-## 1. Install
+## 1. Install and add your key
 
 ```bash
 git clone https://github.com/anirudhyadav-ai-a/JAGGAERConcierge.git
@@ -14,18 +15,29 @@ cd JAGGAERConcierge
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+cp .env.example .env               # then set ANTHROPIC_API_KEY=sk-ant-... in .env
 ```
 
-## 2. Run offline (free)
+Create the key in a Claude Console workspace with a monthly spend limit (see [cost.md](cost.md)). `.env` is
+git-ignored; never commit it. Without a key, the app stops at start-up and says which variable to set.
+
+## 2. Run it
 
 ```bash
-make test          # the full test suite, offline
-python demo.py     # runs the demo questions and prints route, tools, LLM calls and cost
-make serve         # web app on http://localhost:8000 (API docs at /docs)
+python demo.py                                   # the four demo questions, on Claude
+python demo.py "Do I have any pending charges?"  # your own question
+make serve                                       # backend + original page on http://localhost:8000
 ```
 
-Nothing here calls a paid API. `make test` forces `LLM_PROVIDER=mock`, and with no key set the default `auto`
-picks the mock too.
+`demo.py` prints each question's route, agents, tools, LLM calls and cost, then the total spent.
+
+To confirm everything works on Claude, run the live check. It asks the four interview questions and checks each
+answer for the facts the spec requires (amounts, the dispute case id, the policy citation, the recommended card)
+and for the right agents and tools. It costs roughly $0.03–0.10 and stops itself at $0.30:
+
+```bash
+make live-check          # or: python scripts/live_check.py --max-usd 0.30
+```
 
 ## 3. Run with the React frontend
 
@@ -37,8 +49,8 @@ make dev                # backend on :8000 and the React dev server on :5173, to
 ```
 
 Open **http://localhost:5173**. The React dev server passes every `/v1/...` and `/health` call through to the
-backend on port 8000, so there's nothing else to configure. Ctrl+C stops both servers. Edits to files in
-`frontend/src` show up in the browser straight away.
+backend on port 8000, so there's nothing else to configure. The header shows "Claude" and the budget left. Ctrl+C
+stops both servers. Edits to files in `frontend/src` show up in the browser straight away.
 
 To run them in two terminals instead:
 
@@ -70,27 +82,28 @@ after changing the frontend. If `frontend/dist/` doesn't exist, `/app/` explains
 
 Both pages talk to the same API and behave the same way.
 
-## 4. Run on Claude (paid)
-
-Read [cost.md](cost.md) first and set a spend limit in the Claude Console before you add a key.
+## 4. Tests (no API key, no cost)
 
 ```bash
-cp .env.example .env
-# edit .env and set ANTHROPIC_API_KEY=sk-ant-...
-python demo.py                                   # the demo questions, now on Claude
-python demo.py "Do I have any pending charges?"  # your own question
-make serve                                       # the web app, on Claude
+make test               # backend tests
+make frontend-test      # React tests
 ```
 
-With a key present, `LLM_PROVIDER=auto` switches to Claude with no code changes. `.env` is git-ignored; never
-commit it. `demo.py` prints the total spent at the end.
+The tests never call the paid API. They run the real pipeline against a deterministic stand-in LLM
+(`LLM_PROVIDER=mock`) and a fake Claude client that returns genuine SDK response objects and enforces the API's
+model rules. That's what lets CI run on every push for free. The mock exists only for this; the app itself always
+uses Claude.
 
-To force a provider either way:
+## 5. Scale check (no API key, no cost)
 
 ```bash
-LLM_PROVIDER=mock python demo.py         # free, even with a key in .env
-LLM_PROVIDER=anthropic python demo.py    # fails at start-up if ANTHROPIC_API_KEY is missing
+python scripts/scale_check.py                 # 1,000,000 transactions across 10,000 customers
 ```
+
+It generates the data in a temporary folder and times the agents' tools on it. On a laptop-class machine, each
+tool call takes about 0.1 ms at a million rows, and at most 20 rows ever reach the LLM, so a question costs the
+same whatever the data size. See [architecture.md](architecture.md#scaling-the-data) for what changes beyond one
+machine's memory.
 
 ## Settings
 
@@ -98,8 +111,8 @@ All settings are environment variables (or lines in `.env`). `.env.example` list
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | none | Claude API key. Never logged. |
-| `LLM_PROVIDER` | `auto` | `auto` (Claude if a key is set, else mock), `anthropic` or `mock` |
+| `ANTHROPIC_API_KEY` | none (required) | Claude API key. Never logged. |
+| `LLM_PROVIDER` | `anthropic` | `anthropic` (real Claude calls). `mock` is for the test suite and CI only |
 | `INTENT_MODEL` | `claude-haiku-5-5` | model for routing |
 | `AGENT_MODEL` | `claude-sonnet-5-5` | model for agents |
 | `COLLATE_MODEL` | `claude-sonnet-5-5` | model for the final combined answer |
@@ -123,7 +136,7 @@ All settings are environment variables (or lines in `.env`). `.env.example` list
 | Command | Does |
 | --- | --- |
 | `make install` | `pip install -r requirements.txt` |
-| `make test` | runs the test suite on the mock LLM |
+| `make test` | runs the backend tests (no API calls) |
 | `make demo` | `python demo.py` |
 | `make serve` | starts the backend with auto-reload on port 8000 |
 | `make frontend-install` | installs the React app's packages |
@@ -131,6 +144,8 @@ All settings are environment variables (or lines in `.env`). `.env.example` list
 | `make frontend-dev` | the React dev server alone |
 | `make frontend-build` | builds the React app into `frontend/dist/` (served at `/app/`) |
 | `make frontend-test` | runs the React app's tests |
+| `make live-check` | asks the interview questions on real Claude and checks the answers (costs a few cents) |
+| `make scale-check` | times the tools on a million generated transactions (free) |
 
 ## Continuous integration
 
@@ -142,7 +157,8 @@ builds it.
 
 | Symptom | Fix |
 | --- | --- |
-| `LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set` | add the key to `.env`, or use `LLM_PROVIDER=mock` |
+| `Cannot start: ANTHROPIC_API_KEY is not set` | copy `.env.example` to `.env` and put your key in it |
+| Answer says "Claude declined to answer" | the model refused that question; rephrase it |
 | Answer says the key was rejected | the key is wrong or revoked; check `.env` |
 | Answer says rate or spend limit reached | wait a moment, or check the workspace spend limit in the Console |
 | Status `budget_exceeded` | the in-app cap was hit; see [cost.md](cost.md) to check or reset it |

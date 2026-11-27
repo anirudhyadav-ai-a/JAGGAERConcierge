@@ -24,6 +24,10 @@ class Usage:
     output_tokens: int = 0
 
 
+class LLMRefusal(RuntimeError):
+    """The model declined to answer. Raised by MeteredLLM after the call's cost is recorded."""
+
+
 @dataclass
 class LLMResponse:
     text: str = ""
@@ -33,6 +37,7 @@ class LLMResponse:
     # Exact content blocks as returned by the provider (incl. signed thinking blocks).
     # Claude requires these to be sent back unchanged in tool-use loops.
     raw_content: list[dict] | None = None
+    refused: bool = False   # the model declined the request (Claude stop_reason "refusal")
 
     def as_assistant_message(self) -> dict:
         if self.raw_content is not None:

@@ -87,6 +87,7 @@ class AgentPlatform:
                 "RateLimitError": "Claude API rate limit or spend limit reached. Wait a moment, or check the "
                                   "workspace spend limit in the Console.",
                 "APIConnectionError": "Couldn't reach the Claude API. Check your internet connection.",
+                "LLMRefusal": "Claude declined to answer this question. Please rephrase it.",
             }
             final = FinalResponse(session.id, trace_id, "error", hints.get(
                 type(exc).__name__, "Sorry, something went wrong on our side. Please try again."), path="none")

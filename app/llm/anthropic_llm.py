@@ -2,9 +2,12 @@
 
 Model rules this class handles for you (from the Claude API docs):
   - Claude Sonnet 5.5 runs adaptive thinking by default, rejects thinking={"type":"disabled"} and forced
-    tool choice; {"type":"between_tools"} turns off up-front thinking.
+    tool choice ("tool" and "any"); {"type":"between_tools"} turns off up-front thinking, and a forced
+    choice becomes "auto" (the system prompt already tells the model which tool to call).
   - Claude Haiku 5.5 accepts thinking={"type":"disabled"} and forced tool choice.
   - Thinking blocks must be passed back unchanged in tool loops -> we keep raw content blocks.
+  - A response with stop_reason "refusal" means Claude declined the request: flagged as `refused`,
+    and MeteredLLM raises LLMRefusal once the (billed) tokens are recorded.
 If the API still rejects a thinking/tool_choice setting, the call is retried once without it.
 """
 from __future__ import annotations
@@ -53,7 +56,7 @@ class AnthropicLLM:
         if tools:
             kwargs["tools"] = tools
         if tool_choice and tool_choice.get("type") == "tool" and not supports_forced_tool(model):
-            tool_choice = {"type": "any"}
+            tool_choice = {"type": "auto"}
         if tool_choice and tools:
             kwargs["tool_choice"] = tool_choice
         thinking = thinking_for(model)
@@ -66,7 +69,7 @@ class AnthropicLLM:
             if type(exc).__name__ == "BadRequestError" and ("thinking" in str(exc) or "tool_choice" in str(exc)):
                 log.warning("retrying %s without thinking/tool_choice overrides: %s", model, exc)
                 kwargs.pop("thinking", None)
-                if kwargs.get("tool_choice", {}).get("type") == "tool":
+                if kwargs.get("tool_choice", {}).get("type") in ("tool", "any"):
                     kwargs["tool_choice"] = {"type": "auto"}
                 resp = await self.client.messages.create(**kwargs)
             else:
@@ -76,4 +79,5 @@ class AnthropicLLM:
         text = "".join(b.text for b in resp.content if b.type == "text")
         calls = [ToolCall(b.id, b.name, dict(b.input)) for b in resp.content if b.type == "tool_use"]
         usage = Usage(getattr(resp.usage, "input_tokens", 0) or 0, getattr(resp.usage, "output_tokens", 0) or 0)
-        return LLMResponse(text=text, tool_calls=calls, usage=usage, model=model, raw_content=raw)
+        return LLMResponse(text=text, tool_calls=calls, usage=usage, model=model, raw_content=raw,
+                           refused=getattr(resp, "stop_reason", None) == "refusal")

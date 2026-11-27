@@ -37,7 +37,7 @@ A strip under the question compares the two answers:
 Each answer shows a status (Answered, Asked you to clarify, Partly answered, Not answered, Spending limit reached),
 the agents and tools used, LLM calls, cost, time, and a link to its audit trail. **Start over** clears both sides.
 
-The header shows which model is in use ("Claude" or "Offline mock (free)") and, on Claude, the budget left.
+The header shows the model in use ("Claude") and the budget left.
 
 ## Questions to try
 

@@ -9,7 +9,7 @@ LLMs read the question and write the answers. Routing, planning, execution order
 | Doc | Covers |
 | --- | --- |
 | [docs/architecture.md](docs/architecture.md) | request flow, agents, tools and data sources, LLM layer, code map |
-| [docs/running.md](docs/running.md) | install, run offline or on Claude, every setting, troubleshooting |
+| [docs/running.md](docs/running.md) | install, add your key, run it (React or plain page), tests, scale check, settings |
 | [docs/usage.md](docs/usage.md) | the comparison page, questions to try, the HTTP API and its responses |
 | [docs/cost.md](docs/cost.md) | prices, what a question costs, the two spend limits, checking and reducing spend |
 | [SPEC.md](SPEC.md) | the build spec: goals, design rules, acceptance tests, build order, definition of done |
@@ -19,8 +19,10 @@ LLMs read the question and write the answers. Routing, planning, execution order
 ```bash
 git clone <this repo> && cd JAGGAERConcierge
 python3 -m pip install -r requirements.txt     # Python 3.11+
-python3 demo.py                                # runs the scenarios on the free offline mock LLM
-python3 -m pytest -q                           # runs the full suite offline
+cp .env.example .env                           # put your Claude API key in it
+python3 demo.py                                # runs the scenarios on Claude
+python3 scripts/live_check.py                  # checks the interview answers on Claude (a few cents)
+python3 -m pytest -q                           # the test suite (no API calls)
 ```
 
 ## See before vs after in the browser
@@ -135,7 +137,7 @@ In the demo, `customer_id` comes in the request body. In production it comes fro
 
 ## Tests
 
-`make test` runs the whole suite offline:
+`make test` runs the whole suite without calling the API:
 
 - the scenarios above
 - customer isolation

@@ -54,7 +54,11 @@ class ResponseCollator:
                             "error": (r.error if r else "not executed")})
         ok = [p for p in payload if p["status"] == "ok"]
 
-        if len(ok) == 1 and len(payload) == 1 and not state.detail:
+        if not ok:
+            # nothing to combine: say so without paying for an LLM call
+            names = ", ".join(p["agent_name"] for p in payload) or "the agents"
+            text = f"Sorry, I couldn't complete that request right now ({names} didn't finish). Please try again shortly."
+        elif len(ok) == 1 and len(payload) == 1 and not state.detail:
             text = ok[0]["output"]               # single agent: no extra LLM hop needed
         else:
             system = COLLATE_SYSTEM + (DETAIL_SUFFIX if state.detail else "")

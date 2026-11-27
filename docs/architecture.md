@@ -73,8 +73,8 @@ MCP server without changes.
 ```
 MeteredLLM  ── counts calls per request, enforces the call cap, reserves and settles cost
    └─ provider
-        MockLLM       app/llm/mock.py           deterministic, free, used offline and in tests
-        AnthropicLLM  app/llm/anthropic_llm.py  real Claude, chosen when ANTHROPIC_API_KEY is set
+        AnthropicLLM  app/llm/anthropic_llm.py  real Claude: the app, demo and UI always use this
+        MockLLM       app/llm/mock.py           deterministic stand-in for the test suite and CI only
 ```
 
 | Step | Model (default) | Request settings |
@@ -119,8 +119,19 @@ frontend/            React app (Vite + TypeScript): the same comparison page as 
   src/api.ts         typed calls to the backend
   src/compare.ts     the before/after comparison rules
   src/components/    Header, AskBar, ComparisonStrip, AgentPicker, Turn
-tests/               offline test suite, including a fake Anthropic client
+tests/               test suite (no API calls), including a fake Anthropic client
+scripts/scale_check.py   times the tools on a million generated transactions
 ```
+
+## Scaling the data
+
+Agents never see raw tables. Tools query a repository for one customer and return totals plus at most 20 rows,
+so the prompt, the latency and the cost of a question stay flat as the data grows.
+
+`python scripts/scale_check.py` measures it with 1,000,000 generated transactions across 10,000 customers. Each tool
+call takes about 0.1 ms; the file-based store loads in about 2 seconds and uses about 600 MB. That in-memory store is
+the demo's limit, not the design's: past one machine's memory, or with several API instances, replace the repository
+classes with a database (indexes on `customer_id` and `date`) and keep their methods. No agent or tool changes.
 
 ## Moving to production
 

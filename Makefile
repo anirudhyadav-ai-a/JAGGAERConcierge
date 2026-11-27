@@ -1,4 +1,4 @@
-.PHONY: install test demo serve frontend-install frontend-dev frontend-build frontend-test dev
+.PHONY: install test demo serve frontend-install frontend-dev frontend-build frontend-test dev live-check scale-check
 
 install:
 	python3 -m pip install -r requirements.txt
@@ -29,3 +29,11 @@ frontend-test:
 # Backend on :8000 and the React dev server on :5173, together. Ctrl+C stops both.
 dev:
 	$(MAKE) -j2 serve frontend-dev
+
+# Real Claude: the four interview questions, with fact checks (needs ANTHROPIC_API_KEY, costs a few cents)
+live-check:
+	python3 scripts/live_check.py --max-usd 0.30
+
+# Free: time the tools on a million generated transactions
+scale-check:
+	python3 scripts/scale_check.py

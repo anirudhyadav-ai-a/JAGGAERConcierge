@@ -16,7 +16,10 @@ from .platform import AgentPlatform
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 app = FastAPI(title="Agent Platform", version="0.1.0")
-platform = AgentPlatform()
+try:
+    platform = AgentPlatform()
+except RuntimeError as exc:          # e.g. no API key: stop with one clear line, not a traceback
+    raise SystemExit(f"\nCannot start: {exc}\n") from None
 
 
 class ChatRequest(BaseModel):

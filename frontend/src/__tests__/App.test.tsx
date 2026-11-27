@@ -48,7 +48,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe("App", () => {
   it("shows the model and the agent catalog from the backend", async () => {
     render(<App />);
-    expect(await screen.findByText("Offline mock (free)")).toBeInTheDocument();
+    expect(await screen.findByText("Test mock (not Claude)")).toBeInTheDocument();
     expect(await screen.findByText("Credit Card Recommendation")).toBeInTheDocument();
     expect(screen.getByText("search_transactions, get_dispute_status")).toBeInTheDocument();
   });
@@ -184,7 +184,7 @@ describe("App", () => {
       await act(() => vi.advanceTimersByTimeAsync(2000));
       up = true;
       await act(() => vi.advanceTimersByTimeAsync(1000));
-      expect(screen.getByText("Offline mock (free)")).toBeInTheDocument();
+      expect(screen.getByText("Test mock (not Claude)")).toBeInTheDocument();
       expect(screen.getByText("Transaction Queries")).toBeInTheDocument();
     } finally {
       vi.useRealTimers();

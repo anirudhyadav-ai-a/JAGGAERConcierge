@@ -1,7 +1,7 @@
 # Cost and spend protection
 
-The platform calls a paid LLM (Claude) only when `ANTHROPIC_API_KEY` is set. Without a key, or with
-`LLM_PROVIDER=mock`, every call goes to the free offline mock and costs $0. Tests and CI always use the mock.
+Every question the app answers is a real Claude call, so every question costs money. The automated tests and
+CI never call the API: they use a deterministic stand-in (`LLM_PROVIDER=mock`) and cost $0.
 
 ## Prices used
 
@@ -34,7 +34,9 @@ in the ledger after the first run.
 | Two agents, one tool each (late fee + dining spend) | 1 Haiku + 5 Sonnet | about $0.01–0.025 |
 | One agent depends on another (spend + card advice) | 1 Haiku + 5 Sonnet | about $0.01–0.025 |
 
-Longer answers or more thinking between tool calls can push a two-agent question to about $0.06. Running the four
+Longer answers or more thinking between tool calls can push a two-agent question to about $0.06. The cost doesn't
+grow with the amount of data: tools send the model totals plus at most 20 rows, whether a customer has ten
+transactions or ten thousand. Running the four
 demo questions once costs about $0.03–0.07. **A $5 budget covers roughly 200–500 two-agent questions.**
 
 Almost all of the cost is Sonnet output. Routing on Haiku is close to free.
@@ -109,7 +111,7 @@ Example `GET /v1/usage`:
 }
 ```
 
-(Illustrative numbers. In mock mode `/v1/usage` says there are no paid calls.)
+(Illustrative numbers.)
 
 To reset the in-app ledger, stop the app and delete `.usage/ledger.json`. That only resets the local count; it
 doesn't change what the Console has billed.
@@ -118,7 +120,6 @@ doesn't change what the Console has billed.
 
 | Lever | How | Trade-off |
 | --- | --- | --- |
-| Develop on the mock | `LLM_PROVIDER=mock` | answers are rule-based, not Claude |
 | Lower the budget for demos | `BUDGET_USD=1` | stops sooner |
 | Run agents on Haiku | `AGENT_MODEL=claude-haiku-5-5`, `COLLATE_MODEL=claude-haiku-5-5` | about 20× cheaper per token; weaker tool use and writing |
 | Fewer tool rounds | `AGENT_MAX_TOOL_STEPS=3` | an agent may stop before finishing |
@@ -128,8 +129,8 @@ doesn't change what the Console has billed.
 
 Prompt caching wouldn't help yet: these prompts are smaller than the minimum size the API caches.
 
-## Known issue
+## Refusals
 
-Don't set `INTENT_MODEL` to `claude-sonnet-5-5` or `claude-opus-5-5`. The provider changes the forced router tool
-to `tool_choice: any`, which those models reject, so every routed question fails. A rejected request isn't billed,
-but nothing gets answered. Keep routing on Haiku until this is fixed.
+If Claude declines a request (`stop_reason: refusal`), its input tokens are still billed. The ledger records that
+cost, and the answer says Claude declined. When every agent in a request fails, the collator skips its own LLM call,
+since there's nothing to combine.
