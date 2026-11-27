@@ -91,11 +91,12 @@ in [cost.md](cost.md).
 | Question shape | Calls | Example |
 | --- | --- | --- |
 | Ambiguous or out of scope | 1 | "What about my card?" |
-| One agent, two tools | 4 (router 1 + agent 3) | "…$89.99 Online Store 24 charge, and where is the dispute?" |
+| One agent, two tools | 3–4 (router 1 + agent 2–3) | "…$89.99 Online Store 24 charge, and where is the dispute?" |
 | Two agents, one tool each | 6 (router 1 + 2 + 2 + collate 1) | "What is the late payment fee, and how much did I spend on dining?" |
 | One agent depends on another | 6, in two waves | "How much did I spend and which credit card suits my spending?" |
 
-A single-agent answer skips the collator. The cap is `MAX_LLM_CALLS_PER_REQUEST` (default 12).
+A single-agent answer skips the collator. On Claude, an agent can call both of its tools in one step (as A12 does
+for the dispute question), which saves a call. The cap is `MAX_LLM_CALLS_PER_REQUEST` (default 12).
 
 ## Code map
 

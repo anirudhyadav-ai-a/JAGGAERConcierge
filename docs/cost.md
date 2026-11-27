@@ -23,23 +23,23 @@ ledger counts them.
 
 ## What a question costs
 
-These are **estimates**, from measured prompt sizes (about 800 tokens for the router, 120–550 tokens per agent
-call, plus a few hundred tokens the API adds when tools are sent) and typical answer lengths. Your real numbers are
-in the ledger after the first run.
+Measured on real Claude (Haiku 5.5 routing, Sonnet 5.5 agents and collator) with `scripts/live_check.py`,
+November 2026:
 
-| Question shape | LLM calls | Estimated cost |
+| Question | LLM calls | Measured cost |
 | --- | --- | --- |
-| Ambiguous or out of scope ("What about my card?") | 1 Haiku | about $0.0002 |
-| One agent, two tools (the $89.99 dispute question) | 1 Haiku + 3 Sonnet | about $0.007–0.015 |
-| Two agents, one tool each (late fee + dining spend) | 1 Haiku + 5 Sonnet | about $0.01–0.025 |
-| One agent depends on another (spend + card advice) | 1 Haiku + 5 Sonnet | about $0.01–0.025 |
+| Ambiguous ("What about my card?") | 1 Haiku | $0.0003 |
+| One agent, two tools (the $89.99 dispute question) | 1 Haiku + 2 Sonnet | $0.007 |
+| Two agents, one tool each (late fee + dining spend) | 1 Haiku + 5 Sonnet | $0.011–0.012 |
+| One agent depends on another (spend + card advice) | 1 Haiku + 5 Sonnet | $0.019–0.026 |
 
-Longer answers or more thinking between tool calls can push a two-agent question to about $0.06. The cost doesn't
-grow with the amount of data: tools send the model totals plus at most 20 rows, whether a customer has ten
-transactions or ten thousand. Running the four
-demo questions once costs about $0.03–0.07. **A $5 budget covers roughly 200–500 two-agent questions.**
+The four interview questions together cost about **$0.04**. Asking a question on the comparison page runs it twice
+(once per side), so about $0.02–0.05 per two-agent question there. **A $5 budget covers roughly 250 two-agent
+questions on the page, or about 400 through the API.** Longer answers cost more: almost all the cost is Sonnet
+output. Routing on Haiku is close to free.
 
-Almost all of the cost is Sonnet output. Routing on Haiku is close to free.
+The cost doesn't grow with the amount of data: tools send the model totals plus at most 20 rows, whether a
+customer has ten transactions or ten thousand.
 
 ## Two layers of protection
 

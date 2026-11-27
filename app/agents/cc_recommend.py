@@ -53,7 +53,9 @@ def build() -> Agent:
         description="Recommends credit card products that fit the customer's spending and eligibility.",
         keywords=["card", "credit card", "recommend", "rewards", "cashback", "cash back", "which card", "apply"],
         system_prompt="You recommend credit cards. Always ground recommendations in the recommend_cards tool "
-                      "output. State the estimated value and annual fee. Never promise approval.",
+                      "output. State the estimated value and annual fee. Never promise approval. Mention only cards "
+                      "and figures that appear in tool output: the customer's existing cards have no reward data, "
+                      "so don't compare against them or estimate what they earn.",
         tools=[get_customer_profile, recommend_cards],
         sources=["customers", "card_products", "transactions"],
     )

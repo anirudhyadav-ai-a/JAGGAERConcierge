@@ -15,7 +15,7 @@ export function statusLabel(status: string): { label: string; tone: string } {
 
 export interface Comparison {
   headline: string;
-  match: boolean; // same agents and tools: green strip, otherwise red
+  match: boolean; // same agents (and the platform didn't ask to clarify): green strip, otherwise red
   sameAgents: boolean;
   sameTools: boolean;
   sameAnswer: boolean;
@@ -39,19 +39,24 @@ export function compare(left: ChatResponse, right: ChatResponse): Comparison {
   const sameTools = same(leftTools, rightTools);
   const sameAnswer = left.response.trim() === right.response.trim();
 
+  // Only the agent choice is the user's. Which tools an agent calls, and the wording, can vary between two
+  // separate model runs, so with the same agents the sides match even if those differ slightly.
   let headline: string;
   if (right.status === "clarify") {
     headline = "The two sides differ: the platform asked what you meant instead of guessing.";
-  } else if (sameAgents && sameTools && sameAnswer) {
+  } else if (!sameAgents) {
+    headline = "The two sides differ: your selection didn't match what the question needed.";
+  } else if (sameTools && sameAnswer) {
     headline = "Both sides match: same agents, same tools, same answer.";
-  } else if (sameAgents && sameTools) {
+  } else if (sameTools) {
     headline = "Same agents and tools. The wording differs slightly because each side is a separate model response.";
   } else {
-    headline = "The two sides differ: your selection didn't match what the question needed.";
+    headline =
+      "Same agents. They called slightly different tools, because each side is a separate model run; your selection matched.";
   }
   return {
     headline,
-    match: sameAgents && sameTools,
+    match: sameAgents && right.status !== "clarify",
     sameAgents,
     sameTools,
     sameAnswer,

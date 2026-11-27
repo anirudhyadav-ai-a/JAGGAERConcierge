@@ -156,6 +156,25 @@ describe("App", () => {
     expect(container.querySelector("img")).toBeNull();
   });
 
+  it("renders Claude's Markdown answers as formatted text, tables included", async () => {
+    const user = userEvent.setup();
+    const md = "**Late payment fee:** $35 [POL-LATE-03]\n\n| Category | Amount |\n|---|---|\n| Dining | $188.70 |";
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      const json = (d: unknown) => new Response(JSON.stringify(d), { status: 200 });
+      if (url === "/health") return json({ status: "ok", llm: "anthropic", agents: [] });
+      if (url === "/v1/agents") return json(AGENTS);
+      return json({ ...ANSWER, response: md, session_id: "s", trace_id: "t", path: "full" });
+    }));
+    const { container } = render(<App />);
+    await screen.findByText("Policy Knowledge Base");
+    await user.type(screen.getByRole("textbox", { name: "Your question" }), "hi{Enter}");
+    await screen.findAllByText("Late payment fee:");
+    const after = container.querySelector(".after")!;
+    expect(after.querySelector("strong")).toHaveTextContent("Late payment fee:");
+    expect(after.querySelector("table td")).toHaveTextContent("Dining");
+    expect(after.textContent).not.toContain("**");
+  });
+
   it("retries while the backend starts, then says when it isn't reachable", async () => {
     vi.useFakeTimers();
     try {

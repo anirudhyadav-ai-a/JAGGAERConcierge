@@ -29,6 +29,16 @@ describe("compare", () => {
     expect(c.headline).toMatch(/wording differs/);
   });
 
+  it("treats a different tool choice with the same agents as model variation, not a wrong selection", () => {
+    const c = compare(
+      resp({ tools: ["search_policies", "spending_summary"] }),
+      resp({ tools: ["budget_status", "search_policies", "spending_summary"], response: "other wording" }),
+    );
+    expect(c.match).toBe(true);
+    expect(c.sameTools).toBe(false);
+    expect(c.headline).toMatch(/slightly different tools.*your selection matched/);
+  });
+
   it("flags a wrong selection", () => {
     const c = compare(resp({ agents: ["A14"], tools: ["spending_summary"] }), resp());
     expect(c.match).toBe(false);

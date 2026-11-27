@@ -54,6 +54,20 @@ python3 demo.py "Do I have any pending charges?"
 
 `.env` is git-ignored. Never commit a key.
 
+### Verified on Claude
+
+`python3 scripts/live_check.py` asks the four interview questions on real Claude and checks each answer for the
+facts the spec requires. Last run (November 2026):
+
+| Question | Result | Calls | Cost |
+| --- | --- | --- | --- |
+| What about my card? | asks which of card recommendation, transactions or policy you mean; no agent runs | 1 | $0.0003 |
+| $89.99 Online Store 24 charge and its dispute | T9004, $89.99, dispute D-55120 under review, provisional credit issued | 3 | $0.007 |
+| Late payment fee + dining spend | $35 [POL-LATE-03] and $188.70, agents in parallel | 6 | $0.011 |
+| Spend this month + best card | $1,525.84 by category, then Flat 2% Cash Back Card (~$366.20/yr), A14 before A11 | 6 | $0.019 |
+
+Wording changes from run to run; the facts, agents and tools don't.
+
 ### Spending protection (two layers)
 
 1. **Console (authoritative).** In the Claude Console, create a dedicated workspace, set its monthly spend
@@ -66,7 +80,8 @@ python3 demo.py "Do I have any pending charges?"
 
 The in-app ledger is per machine, so layer 1 is what protects a key shared with someone else.
 
-Rough cost on Claude: about $0.0002 for an ambiguous question, and $0.01–0.03 for a two-agent question.
+Measured cost on Claude: $0.0003 for an ambiguous question, and $0.01–0.03 for a two-agent question; the four
+interview questions together cost about $0.04.
 See [docs/cost.md](docs/cost.md).
 
 ## Demo scenarios

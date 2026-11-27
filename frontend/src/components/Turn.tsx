@@ -1,5 +1,6 @@
 import { api, type ChatResponse } from "../api";
 import { statusLabel } from "../compare";
+import { Answer } from "./Answer";
 
 export interface TurnState {
   id: number;
@@ -48,7 +49,7 @@ export function Turn({ turn, agentLabel }: { turn: TurnState; agentLabel: string
       {response && (
         <>
           <StatusPill status={response.status} />
-          <p className="a">{response.response}</p>
+          <Answer text={response.response} />
           <Facts response={response} agentLabel={agentLabel} />
           <p className="trace">
             Audit trail:{" "}
